@@ -1,0 +1,10 @@
+[project]
+name = "styio-audit"
+version = "0.1.0"
+description = "Modular auditable-code framework for the Styio repositories."
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+styio-audit = "styio_audit.cli:main"
