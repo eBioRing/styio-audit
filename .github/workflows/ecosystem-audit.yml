@@ -1,0 +1,64 @@
+name: ecosystem-audit
+
+on:
+  push:
+    branches:
+      - ai-dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-targets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      STYIO_PYTHON_VERSION: "3.13.5"
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - repo: eBioRing/styio-audit
+            path: styio-audit
+            project: styio-audit
+          - repo: Unka-Malloc/styio-nightly
+            path: styio-nightly
+            project: styio
+          - repo: Unka-Malloc/styio-spio
+            path: styio-spio
+            project: styio-spio
+          - repo: Unka-Malloc/styio-view
+            path: styio-view
+            project: styio-view
+          - repo: eBioRing/styio-platform
+            path: styio-platform
+            project: styio-platform
+
+    steps:
+      - name: Checkout latest styio-audit policy
+        uses: actions/checkout@v5
+        with:
+          ref: ai-dev
+          path: styio-audit
+
+      - name: Checkout target repository
+        if: matrix.target.path != 'styio-audit'
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.target.repo }}
+          ref: ai-dev
+          path: ${{ matrix.target.path }}
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Run latest styio-audit gate
+        run: |
+          git -C styio-audit rev-parse HEAD
+          git -C "${{ matrix.target.path }}" rev-parse HEAD
+          python3 styio-audit/bin/styio-audit gate \
+            --repo "${{ matrix.target.path }}" \
+            --project "${{ matrix.target.project }}"

@@ -16,6 +16,14 @@ This keeps the common framework stable while allowing each repository to evolve 
 
 The audited repository does not provide an audit interface. `styio-audit` reads the target worktree externally and applies its own modules.
 
+## Execution Contract
+
+Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch, check out `eBioRing/styio-audit` from `ai-dev`, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository.
+
+`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on every `ai-dev` push. That fan-out workflow checks out the latest `ai-dev` target repositories and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+
+Audit execution must record both the audit framework commit SHA and the target repository commit SHA in the workflow log. CI must not rely on a `styio-audit` binary found on `PATH`, because that can be older than the repository policy.
+
 ## Module Contract
 
 A project module must define:

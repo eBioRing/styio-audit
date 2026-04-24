@@ -32,6 +32,14 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 `gate` prints findings only. `report` emits a structured external-audit result and can write either JSON or plain text output; JSON is the preferred interchange format for downstream tooling.
 
+## Cross-Repo Execution
+
+Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch. That workflow checks out `eBioRing/styio-audit` at `ai-dev` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
+
+This repository also owns `.github/workflows/ecosystem-audit.yml`. On every `ai-dev` push to `styio-audit`, it checks out the latest target repositories on `ai-dev` and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+
+Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its `styio-audit` workflow as a required status check before merging protected branches.
+
 ## Project Mapping
 
 The loader always selects `modules/default`. It then selects project modules whose `project_ids` contain the requested `--project` value or the target repository directory name.

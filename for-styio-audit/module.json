@@ -10,7 +10,8 @@
     "JSON module manifests",
     "unittest-based framework tests",
     "Markdown policy, spec, and inventory documents",
-    "Git CLI integration for target repository file discovery"
+    "Git CLI integration for target repository file discovery",
+    "GitHub Actions workflow automation for ecosystem audit fan-out"
   ],
   "internal_components": [
     "styio_audit loader, model, check, CLI, and report modules",
@@ -20,7 +21,8 @@
     "Sensitive-boundary gate for auth, privacy, password, key, secret-material, deployment-security, dependency-vulnerability, DAST, runtime-secret, rate-limit, log-redaction, SSRF, and command-execution controls",
     "Password, token, API key, private-key, client-secret, and access-key scanner",
     "Manifest inventory schema gate",
-    "Framework test suite and command wrapper"
+    "Framework test suite and command wrapper",
+    "Ecosystem audit fan-out workflow for styio, styio-spio, styio-view, styio-platform, and styio-audit"
   ],
   "open_source_components": [
     "Python standard library",
@@ -34,14 +36,15 @@
     "for-styio-spio/module.json",
     "for-styio-view/module.json",
     "for-styio-platform/module.json",
-    "for-styio-audit/module.json"
+    "for-styio-audit/module.json",
+    ".github/workflows/ecosystem-audit.yml"
   ],
   "resource_classes": [
     {
       "id": "audit_framework_core",
       "owner": "Audit Framework / CLI",
       "description": "Owns CLI commands, module loading, schema validation, target repository scans, findings, and report serialization.",
-      "scope_globs": ["styio_audit/**", "bin/styio-audit", "pyproject.toml", "tests/**"],
+      "scope_globs": ["styio_audit/**", "bin/styio-audit", "pyproject.toml", "tests/**", ".github/workflows/ecosystem-audit.yml"],
       "copying_policy": "Target repository data must be read only for audit evidence; reports should summarize findings without copying large source payloads.",
       "concurrency_policy": "Audit runs are process-local and read-only; future parallel scans must keep finding collection deterministic.",
       "nullability_policy": "Missing repositories, modules, hooks, fields, and target files must become explicit audit findings or CLI diagnostics.",
