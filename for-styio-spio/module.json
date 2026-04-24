@@ -37,6 +37,22 @@
     "pyproject.toml or TOML support files where present",
     ".github/workflows/*.yml"
   ],
+  "security_boundaries": [
+    "Authentication and authorization implementation may be public when it is standard registry or control-plane protocol behavior.",
+    "Privacy and PII payloads must not be committed in registry fixtures, examples, reports, or logs.",
+    "Password storage is not a production styio-spio responsibility; any password fixture must be fake test data.",
+    "Secret, token, key, and credential material must stay private even when key-generation helper code is public.",
+    "Production private material, signing keys, registry role keys, and generated key bundles are offline or not committed to GitHub.",
+    "Permission matrix and route authorization behavior for registry and control-plane routes must be covered by regression tests.",
+    "Deployment security config must document TLS, CORS, CSRF, cookie, debug exposure, and local-only control-plane boundaries where applicable.",
+    "SBOM, CVE, and dependency vulnerability scan evidence is required before release or external deployment gates pass.",
+    "DAST black-box penetration security regression must cover deployed registry and control-plane HTTP surfaces before public deployment.",
+    "Runtime secret manager or KMS key rotation owns production signing keys, hosted tokens, and registry credentials.",
+    "Rate limit, anti replay nonce, and idempotency boundaries must be documented for registry publish and control-plane routes.",
+    "Log redaction and audit log rules must prevent request tokens, key paths, and credentials from being written to logs.",
+    "SSRF egress allowlist and URL allowlist boundaries must cover registry downloads, mirror reads, and outbound control-plane requests.",
+    "Command execution must use subprocess allowlists and reject shell injection surfaces for toolchain, compiler, and helper invocations."
+  ],
   "resource_classes": [
     {
       "id": "manifest_resolver_graph",

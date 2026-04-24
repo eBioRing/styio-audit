@@ -53,6 +53,217 @@ DEFAULT_DEPENDENCY_BOUNDARY_FILES = [
     "docs/third-party.md",
 ]
 IGNORED_DEPENDENCY_PATH_PARTS = {".git", ".dart_tool", ".pytest_cache", ".venv", "build", "dist", "node_modules", "venv"}
+DEFAULT_SERVER_SECURITY_CODE_GLOBS = [
+    "**/*.c",
+    "**/*.cc",
+    "**/*.cpp",
+    "**/*.cxx",
+    "**/*.h",
+    "**/*.hh",
+    "**/*.hpp",
+    "**/*.py",
+    "**/*.sh",
+    "**/*.bash",
+    "**/*.dart",
+    "**/*.js",
+    "**/*.ts",
+    "**/*.go",
+    "**/*.rs",
+    "**/*.java",
+    "**/*.kt",
+    "**/*.swift",
+    "**/*.yml",
+    "**/*.yaml",
+    "CMakeLists.txt",
+    "**/CMakeLists.txt",
+]
+DEFAULT_SERVER_SECURITY_IGNORED_PATH_PARTS = {
+    ".git",
+    ".dart_tool",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "build-codex",
+    "dist",
+    "node_modules",
+    "venv",
+}
+DEFAULT_SERVER_SENSITIVE_MATERIAL_GLOBS = [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/*.p12",
+    "**/*.pfx",
+    "**/id_rsa",
+    "**/id_ed25519",
+    "**/private/*.key",
+    "**/private/*.pem",
+    "**/production/*.key",
+    "**/production/*.pem",
+    "**/*prod*secret*.json",
+    "**/*production*secret*.json",
+]
+DEFAULT_ALLOWED_MATERIAL_NAME_MARKERS = [
+    "example",
+    "sample",
+    "template",
+    "test",
+    "fixture",
+    "fake",
+    "dummy",
+    "placeholder",
+    "public",
+]
+DEFAULT_SERVER_SECURITY_MANIFEST_MARKERS = [
+    "auth|authentication|authorization|identity|鉴权",
+    "privacy|pii|personal data|隐私",
+    "password|密码",
+    "secret|token|key|credential|密钥",
+    "production|offline|private material|not committed|不进仓库|离线",
+    "permission matrix|route authorization|rbac|role based access|权限矩阵",
+    "deployment security|deployment config|tls|cors|csrf|cookie|部署安全",
+    "sbom|cve|dependency vulnerability|vulnerability scan|依赖漏洞",
+    "dast|black-box|penetration|security regression|渗透",
+    "runtime secret|secret manager|kms|key rotation|密钥轮换",
+    "rate limit|anti replay|replay protection|nonce|idempotency|限流|重放",
+    "log redaction|sensitive log|audit log|日志脱敏",
+    "ssrf|egress allowlist|url allowlist|outbound request|出站",
+    "command execution|shell injection|subprocess allowlist|命令执行",
+]
+DEFAULT_SERVER_DANGEROUS_CODE_CATEGORIES = {
+    "auth_bypass_toggle": [
+        "allow_anonymous=true",
+        "allow_anonymous = true",
+        "skip_auth=true",
+        "skip_auth = true",
+        "auth_disabled=true",
+        "auth_disabled = true",
+        "disable_auth=true",
+        "disable_auth = true",
+    ],
+    "command_injection_surface": [
+        "shell=true",
+        "shell = true",
+        "os.system(",
+    ],
+    "custom_crypto": [
+        "custom crypto",
+        "custom cryptography",
+        "homegrown crypto",
+        "roll your own crypto",
+        "proprietary cipher",
+        "xor cipher",
+    ],
+    "csrf_disabled": [
+        "csrf=false",
+        "csrf = false",
+        "csrf_disabled=true",
+        "csrf_disabled = true",
+        "csrf_exempt",
+        "disable_csrf=true",
+        "disable_csrf = true",
+    ],
+    "cors_wildcard": [
+        "access-control-allow-origin: *",
+        "access_control_allow_origin = '*'",
+        "access_control_allow_origin='*'",
+        "allow_origins=['*']",
+        "allow_origins = ['*']",
+        "allow_origins=[\"*\"]",
+        "allow_origins = [\"*\"]",
+    ],
+    "jwt_none_algorithm": [
+        '"alg":"none"',
+        '"alg": "none"',
+        "'alg':'none'",
+        "'alg': 'none'",
+        "alg=none",
+        "algorithm none",
+    ],
+    "disabled_verification": [
+        "verify_signature=false",
+        "verify_signature = false",
+        '"verify_signature": false',
+        "'verify_signature': false",
+        "rejectunauthorized: false",
+        "ssl_verify=false",
+        "ssl_verify = false",
+        "tls_verify=false",
+        "tls_verify = false",
+        "--no-check-certificate",
+    ],
+    "default_credential": [
+        "admin:admin",
+        "password=password",
+        "password = password",
+        "default_password",
+        "default_admin_password",
+    ],
+    "debug_public_exposure": [
+        "app.run(debug=true",
+        "app.run(debug = true",
+        "flask_debug=1",
+        "flask_debug = 1",
+        "django_debug=true",
+        "django_debug = true",
+    ],
+    "insecure_cookie": [
+        "httponly=false",
+        "httponly = false",
+        "http_only=false",
+        "http_only = false",
+        "secure=false",
+        "secure = false",
+        "cookie_secure=false",
+        "cookie_secure = false",
+    ],
+    "insecure_random_secret": [
+        "random.random secret",
+        "random.random token",
+        "random.random password",
+        "math.random secret",
+        "math.random token",
+        "math.random password",
+    ],
+    "rate_limit_disabled": [
+        "rate_limit=false",
+        "rate_limit = false",
+        "rate_limit=0",
+        "rate_limit = 0",
+        "disable_rate_limit=true",
+        "disable_rate_limit = true",
+    ],
+    "ssrf_unrestricted_fetch": [
+        "requests.get(url",
+        "requests.post(url",
+        "requests.put(url",
+        "requests.delete(url",
+        "urllib.request.urlopen(url",
+        "fetch(url",
+    ],
+    "weak_password_hash": [
+        "hashlib.md5(password",
+        "hashlib.sha1(password",
+        "md5 password",
+        "sha1 password",
+        "password md5",
+        "password sha1",
+    ],
+    "plaintext_password_storage": [
+        "plain text password",
+        "plaintext password",
+        "cleartext password",
+        "store password as plain text",
+        "store passwords as plain text",
+        "password stored in plain text",
+    ],
+}
+DEFAULT_SERVER_PROJECT_MARKERS = [
+    "server deployment|server-deployment|server-side|backend|服务端",
+    "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control",
+]
 
 
 def finding(message: str, module_id: str = "core", severity: str = "error") -> AuditFinding:
@@ -180,6 +391,54 @@ def validate_secret_scan_policy(policy: Any, module_id: str) -> list[AuditFindin
     return findings
 
 
+def validate_server_sensitive_boundary_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module server_sensitive_boundary_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module server_sensitive_boundary_policy.enabled must be a boolean", module_id))
+    for key in ("name", "source_boundary"):
+        findings.extend(require_string(policy, key, "module server_sensitive_boundary_policy", module_id))
+    for key in (
+        "target_project_ids",
+        "server_project_markers",
+        "code_globs",
+        "ignored_path_parts",
+        "restricted_material_globs",
+        "allowed_material_name_markers",
+        "required_manifest_markers",
+    ):
+        values, key_findings = get_optional_string_list(policy, key, "module server_sensitive_boundary_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module server_sensitive_boundary_policy `{key}` entries must be unique", module_id))
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        findings.append(finding("module server_sensitive_boundary_policy.max_file_bytes must be a positive integer", module_id))
+
+    categories = policy.get("disallowed_code_categories", DEFAULT_SERVER_DANGEROUS_CODE_CATEGORIES)
+    if not isinstance(categories, dict) or not categories:
+        findings.append(finding("module server_sensitive_boundary_policy.disallowed_code_categories must be a non-empty object", module_id))
+        return findings
+    for category, markers in categories.items():
+        if not isinstance(category, str) or not STATE_RE.match(category):
+            findings.append(finding(f"module server_sensitive_boundary_policy.disallowed_code_categories has invalid category `{category}`", module_id))
+            continue
+        if not isinstance(markers, list) or not markers:
+            findings.append(finding(f"module server_sensitive_boundary_policy.disallowed_code_categories.{category} must be a non-empty list", module_id))
+            continue
+        seen: set[str] = set()
+        for index, marker in enumerate(markers):
+            if not isinstance(marker, str) or not marker.strip():
+                findings.append(finding(f"module server_sensitive_boundary_policy.disallowed_code_categories.{category}[{index}] must be a non-empty string", module_id))
+                continue
+            if marker in seen:
+                findings.append(finding(f"module server_sensitive_boundary_policy.disallowed_code_categories.{category} entries must be unique", module_id))
+            seen.add(marker)
+    return findings
+
+
 def validate_project_inventory(module: AuditModule) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     for key in REQUIRED_PROJECT_INVENTORY_FIELDS:
@@ -221,6 +480,8 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_manifest_inventory_policy(data["manifest_inventory_policy"], module.module_id))
         if "secret_scan_policy" in data:
             findings.extend(validate_secret_scan_policy(data["secret_scan_policy"], module.module_id))
+        if "server_sensitive_boundary_policy" in data:
+            findings.extend(validate_server_sensitive_boundary_policy(data["server_sensitive_boundary_policy"], module.module_id))
     else:
         project_ids, project_findings = get_string_list(data, "project_ids", "module", module.module_id)
         findings.extend(project_findings)
@@ -601,6 +862,82 @@ def policy_strings(policy: dict[str, Any], key: str, default: list[str]) -> list
     return [item for item in values if isinstance(item, str) and item.strip()]
 
 
+def policy_categories(policy: dict[str, Any], key: str, default: dict[str, list[str]]) -> dict[str, list[str]]:
+    raw = policy.get(key, default)
+    if not isinstance(raw, dict):
+        return {category: list(markers) for category, markers in default.items()}
+    result: dict[str, list[str]] = {}
+    for category, markers in raw.items():
+        if not isinstance(category, str) or not isinstance(markers, list):
+            continue
+        clean_markers = [marker for marker in markers if isinstance(marker, str) and marker.strip()]
+        if clean_markers:
+            result[category] = clean_markers
+    return result or {category: list(markers) for category, markers in default.items()}
+
+
+def path_has_part(relative_path: str, ignored_parts: set[str]) -> bool:
+    return any(part in ignored_parts for part in Path(relative_path).parts)
+
+
+def module_text(module: AuditModule) -> str:
+    parts: list[str] = []
+    for key in (
+        "description",
+        "technology_stack",
+        "internal_components",
+        "open_source_components",
+        "dependency_manifests",
+        "security_boundaries",
+    ):
+        value = module.data.get(key)
+        if isinstance(value, str):
+            parts.append(value)
+        elif isinstance(value, list):
+            parts.extend(item for item in value if isinstance(item, str))
+    resources = module.data.get("resource_classes")
+    if isinstance(resources, list):
+        for resource in resources:
+            if not isinstance(resource, dict):
+                continue
+            for key in (
+                "id",
+                "owner",
+                "description",
+                "copying_policy",
+                "concurrency_policy",
+                "nullability_policy",
+                "cleanup_policy",
+            ):
+                value = resource.get(key)
+                if isinstance(value, str):
+                    parts.append(value)
+            for key in ("scope_globs", "required_tests", "required_gates", "audit_risks"):
+                value = resource.get(key)
+                if isinstance(value, list):
+                    parts.extend(item for item in value if isinstance(item, str))
+    return normalized_text("\n".join(parts))
+
+
+def project_has_server_deployment_surface(context: AuditContext, markers: list[str]) -> bool:
+    for module in context.modules:
+        if module.module_type == "default":
+            continue
+        text = module_text(module)
+        if any(marker_group_matches(text, marker) for marker in markers):
+            return True
+    return False
+
+
+def path_matches_any_marker(relative_path: str, markers: list[str]) -> bool:
+    text = normalized_text(relative_path.replace("_", " ").replace("-", " ").replace("/", " "))
+    for marker in markers:
+        normalized_marker = marker.replace("_", " ").replace("-", " ")
+        if marker_group_matches(text, normalized_marker):
+            return True
+    return False
+
+
 def check_license_policy(context: AuditContext) -> list[AuditFinding]:
     if context.repo_root is None:
         return []
@@ -801,6 +1138,110 @@ def check_secret_scan_policy(context: AuditContext, files: list[str]) -> list[Au
     return findings
 
 
+def check_server_sensitive_boundary_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("server_sensitive_boundary_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    server_markers = policy_strings(policy, "server_project_markers", DEFAULT_SERVER_PROJECT_MARKERS)
+    if not project_has_server_deployment_surface(context, server_markers):
+        return []
+
+    server_modules = [
+        module
+        for module in context.modules
+        if module.module_type != "default"
+        and any(marker_group_matches(module_text(module), marker) for marker in server_markers)
+    ]
+    code_globs = policy_strings(policy, "code_globs", DEFAULT_SERVER_SECURITY_CODE_GLOBS)
+    ignored_parts = set(policy_strings(policy, "ignored_path_parts", sorted(DEFAULT_SERVER_SECURITY_IGNORED_PATH_PARTS)))
+    restricted_material_globs = policy_strings(policy, "restricted_material_globs", DEFAULT_SERVER_SENSITIVE_MATERIAL_GLOBS)
+    allowed_material_markers = policy_strings(policy, "allowed_material_name_markers", DEFAULT_ALLOWED_MATERIAL_NAME_MARKERS)
+    manifest_markers = policy_strings(policy, "required_manifest_markers", DEFAULT_SERVER_SECURITY_MANIFEST_MARKERS)
+    categories = policy_categories(policy, "disallowed_code_categories", DEFAULT_SERVER_DANGEROUS_CODE_CATEGORIES)
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        max_file_bytes = DEFAULT_MAX_FILE_BYTES
+
+    findings: list[AuditFinding] = []
+    for module in server_modules:
+        boundaries = module.data.get("security_boundaries")
+        if not isinstance(boundaries, list) or not any(isinstance(item, str) and item.strip() for item in boundaries):
+            findings.append(
+                finding(
+                    f"server sensitive-boundary policy: {module.module_id} must declare non-empty "
+                    "`security_boundaries` for auth, privacy, passwords, secrets, deployment security, "
+                    "permission matrix, dependency vulnerability, DAST, runtime secret management, "
+                    "rate limiting, log redaction, SSRF/egress control, and command execution control",
+                    default.module_id,
+                )
+            )
+
+    project_manifest_text = normalized_text(
+        "\n".join(module_text(module) for module in context.modules if module.module_type != "default")
+    )
+    for marker in manifest_markers:
+        if not marker_group_matches(project_manifest_text, marker):
+            findings.append(
+                finding(
+                    "server sensitive-boundary policy: project manifest inventory missing "
+                    f"security-boundary marker `{marker}`",
+                    default.module_id,
+                )
+            )
+
+    material_files: list[str] = []
+    for pattern in restricted_material_globs:
+        material_files.extend(matches(pattern, files))
+    for relative in unique_strings(sorted(material_files)):
+        if path_has_part(relative, ignored_parts) or path_matches_any_marker(relative, allowed_material_markers):
+            continue
+        findings.append(
+            finding(
+                f"server sensitive-boundary policy: {relative} looks like deployable secret material; "
+                "production credentials, private keys, tokens, .env files, and generated key bundles must stay "
+                "offline or in approved secret-management storage, not in GitHub",
+                default.module_id,
+            )
+        )
+
+    code_files: list[str] = []
+    for pattern in code_globs:
+        code_files.extend(matches(pattern, files))
+    code_files = [path for path in unique_strings(sorted(code_files)) if not path_has_part(path, ignored_parts)]
+
+    for relative in code_files:
+        path = context.repo_root / relative
+        if not path.is_file() or path.stat().st_size > max_file_bytes:
+            continue
+        text = normalized_text(path.read_text(encoding="utf-8", errors="replace"))
+        for category, markers in sorted(categories.items()):
+            for marker in markers:
+                if not marker_group_matches(text, marker):
+                    continue
+                findings.append(
+                    finding(
+                        f"server sensitive-boundary policy: {relative} contains dangerous marker `{marker}` "
+                        f"({category}); public standard implementations are allowed, but source-visible "
+                        "auth bypasses, deployment-security bypasses, weak crypto/password handling, "
+                        "insecure runtime-secret generation, and production-key shortcuts are forbidden",
+                        default.module_id,
+                    )
+                )
+                break
+    return findings
+
+
 def check_defect_records(context: AuditContext) -> list[AuditFinding]:
     if context.framework_only or context.repo_root is None:
         return []
@@ -864,6 +1305,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         findings.extend(check_license_policy(context))
         findings.extend(check_commercial_risk_policy(context, files))
         findings.extend(check_secret_scan_policy(context, files))
+        findings.extend(check_server_sensitive_boundary_policy(context, files))
         findings.extend(check_defect_records(context))
     findings.extend(hook_findings(context.modules, context.as_hook_context()))
     return findings

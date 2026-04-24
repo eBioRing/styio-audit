@@ -42,9 +42,10 @@ The manifest inventory fields are blocking audit inputs. If a project module doe
 4. Target repository scope globs.
 5. Styio-family Apache-2.0 license evidence and source-distribution notices.
 6. Dependency commercial-risk evidence, including dependency usage boundaries and prohibited commercial authorization markers.
-7. Current-worktree secret evidence for passwords, tokens, API keys, private keys, client secrets, and access keys.
-8. Target defect records when present, unless `--framework-only` is used.
-9. Optional dynamic module hooks.
+7. Server-deployment sensitive security boundaries for authentication, privacy, password storage, keys, tokens, and production secret material.
+8. Current-worktree secret evidence for passwords, tokens, API keys, private keys, client secrets, and access keys.
+9. Target defect records when present, unless `--framework-only` is used.
+10. Optional dynamic module hooks.
 
 Gate failure is based on audit quality. Passing application tests is not enough to override a failed audit framework check.
 
@@ -65,6 +66,29 @@ Commercial-risk checks require:
 3. Every dependency discovered in supported manifests must be named in usage-boundary evidence.
 
 This is an engineering gate, not legal advice. Apache-2.0 does not impose GPL-style copyleft inheritance, but ambiguous dependency terms should fail closed until project owners record acceptable open-source license evidence and a clear usage boundary.
+
+## Server Sensitive-Boundary Policy
+
+The default module treats a project as server-deployment scoped when its project manifest describes server deployment, server-side, backend, deployment, cloud, hosted, control-plane, registry, regional-node, systemd, VM deployment, or worker-control surfaces.
+
+For those open-source repositories, public implementation code is allowed when it is a standard, auditable protocol or algorithm implementation. Security must not depend on hiding the algorithm. The enforced boundary is instead:
+
+1. Project manifests must document authentication/authorization boundaries.
+2. Project manifests must document privacy or PII boundaries.
+3. Project manifests must document password-storage boundaries, including an explicit no-production-password-storage statement when applicable.
+4. Project manifests must document secret, token, key, and credential boundaries.
+5. Project manifests must document that production private material is offline, in approved secret management, or otherwise not committed to GitHub.
+6. Project manifests must document permission-matrix or route-authorization regression coverage.
+7. Project manifests must document deployment-security coverage for TLS, CORS, CSRF, cookies, and debug exposure where applicable.
+8. Project manifests must document dependency-vulnerability evidence such as SBOM, CVE, or vulnerability-scan gates.
+9. Project manifests must document DAST, black-box, penetration, or security-regression coverage for deployed service surfaces.
+10. Project manifests must document runtime secret management, such as Secret Manager, KMS, or key rotation.
+11. Project manifests must document rate-limit, anti-replay, nonce, or idempotency boundaries for externally reachable routes.
+12. Project manifests must document log-redaction and audit-log handling for sensitive request data.
+13. Project manifests must document SSRF, egress allowlist, URL allowlist, or outbound-request boundaries.
+14. Project manifests must document command-execution, shell-injection, or subprocess-allowlist boundaries.
+
+The gate still hard-fails unsafe code and source artifacts: deployable secret material, production `.env` files, private keys, generated key bundles, custom cryptography, auth-bypass toggles, JWT `none` shortcuts, disabled verification, wildcard CORS, disabled CSRF, insecure cookies, weak password hashing, insecure random secret generation, plaintext password handling, command-injection surfaces, unrestricted SSRF-prone fetches, default credentials, public debug exposure, disabled rate limits, and production-key shortcuts. The gate reports the path, matched marker, and category, but it does not copy suspected secret values into findings.
 
 ## Secret Scan Policy
 

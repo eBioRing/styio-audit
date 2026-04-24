@@ -66,6 +66,50 @@ class FrameworkTests(unittest.TestCase):
                     "secret_classes": ["password", "token", "api_key", "private_key", "client_secret", "access_key"],
                     "max_file_bytes": 1048576,
                 },
+                "server_sensitive_boundary_policy": {
+                    "enabled": True,
+                    "name": "Server sensitive security boundary.",
+                    "target_project_ids": ["demo"],
+                    "server_project_markers": ["server|service|deployment"],
+                    "code_globs": ["**/*.py"],
+                    "ignored_path_parts": [".git", "__pycache__"],
+                    "restricted_material_globs": [".env", "**/.env", "**/private/*.pem", "**/production/*.key"],
+                    "allowed_material_name_markers": ["example", "test", "fixture", "fake"],
+                    "required_manifest_markers": [
+                        "auth|authentication|authorization|identity",
+                        "privacy|pii",
+                        "password",
+                        "secret|token|key|credential",
+                        "production|offline|private material|not committed",
+                        "permission matrix|route authorization|rbac",
+                        "deployment security|deployment config|tls|cors|csrf|cookie",
+                        "sbom|cve|dependency vulnerability|vulnerability scan",
+                        "dast|black-box|penetration|security regression",
+                        "runtime secret|secret manager|kms|key rotation",
+                        "rate limit|anti replay|replay protection|nonce|idempotency",
+                        "log redaction|sensitive log|audit log",
+                        "ssrf|egress allowlist|url allowlist|outbound request",
+                        "command execution|shell injection|subprocess allowlist",
+                    ],
+                    "disallowed_code_categories": {
+                        "auth_bypass_toggle": ["allow_anonymous=true", "skip_auth=true"],
+                        "command_injection_surface": ["shell=true", "os.system("],
+                        "custom_crypto": ["custom crypto"],
+                        "csrf_disabled": ["csrf=false", "csrf_exempt"],
+                        "cors_wildcard": ["access-control-allow-origin: *", "allow_origins=['*']"],
+                        "jwt_none_algorithm": ["\"alg\":\"none\"", "\"alg\": \"none\""],
+                        "disabled_verification": ["verify_signature=false", "verify_signature = false"],
+                        "default_credential": ["admin:admin", "default_password"],
+                        "debug_public_exposure": ["app.run(debug=true", "flask_debug=1"],
+                        "insecure_cookie": ["httponly=false", "secure=false"],
+                        "insecure_random_secret": ["random.random token", "math.random token"],
+                        "rate_limit_disabled": ["rate_limit=false", "rate_limit=0"],
+                        "ssrf_unrestricted_fetch": ["requests.get(url", "fetch(url"],
+                        "weak_password_hash": ["hashlib.md5(password", "hashlib.sha1(password"],
+                        "plaintext_password_storage": ["plain text password", "plaintext password"],
+                    },
+                    "source_boundary": "Standard implementation can be public; production secrets and dangerous auth or crypto patterns cannot.",
+                },
             },
         )
 
@@ -422,6 +466,306 @@ class FrameworkTests(unittest.TestCase):
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("disallowed commercial-risk term" in message for message in messages))
             self.assertTrue(any("dependency `paid-widget`" in message for message in messages))
+
+    def test_server_sensitive_boundary_policy_allows_standard_open_implementation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_policy_default_module(framework_root)
+            self._write_json(
+                framework_root,
+                "for-demo/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "for-demo",
+                    "module_type": "project",
+                    "description": "Demo server deployment module.",
+                    "last_updated": "2026-04-24",
+                    "project_ids": ["demo"],
+                    "technology_stack": ["Python server deployment service"],
+                    "internal_components": ["Server authentication handler"],
+                    "open_source_components": ["Python standard library"],
+                    "dependency_manifests": ["package.json"],
+                    "security_boundaries": [
+                        "Authentication and authorization implementation can be public when it uses documented standard protocol behavior.",
+                        "Privacy and PII payloads must not be committed in source, examples, or logs.",
+                        "Password storage uses documented KDF behavior or is declared as not storing production passwords.",
+                        "Secret, token, key, and credential material must stay private.",
+                        "Production private material is offline or not committed to GitHub.",
+                        "Permission matrix and route authorization behavior are covered by regression tests.",
+                        "Deployment security config covers TLS, CORS, CSRF, cookie, and debug exposure boundaries.",
+                        "SBOM and CVE dependency vulnerability scan evidence is required for release gates.",
+                        "DAST black-box penetration security regression runs against deployed service surfaces.",
+                        "Runtime secret manager or KMS key rotation owns production secret delivery.",
+                        "Rate limit, anti replay nonce, and idempotency boundaries are documented for externally reachable routes.",
+                        "Log redaction and audit log rules prevent sensitive request data from being written to logs.",
+                        "SSRF egress allowlist and URL allowlist boundaries cover outbound request helpers.",
+                        "Command execution uses subprocess allowlist boundaries and rejects shell injection surfaces.",
+                    ],
+                    "resource_classes": [
+                        {
+                            "id": "server_auth",
+                            "owner": "Server",
+                            "description": "Owns service login and password storage.",
+                            "scope_globs": ["src/server/**"],
+                            "copying_policy": "No production secrets in public source.",
+                            "concurrency_policy": "Single process.",
+                            "nullability_policy": "Missing users fail closed.",
+                            "cleanup_policy": "No retained state.",
+                            "state_machine": {
+                                "source": "Demo service.",
+                                "states": ["offline", "running", "failed"],
+                                "transitions": [{"from": "offline", "to": "running", "on": "start"}],
+                                "invalid_operations": ["publish auth code"],
+                            },
+                            "required_tests": ["auth boundary test"],
+                            "required_gates": ["secret scan gate"],
+                            "audit_risks": ["production secret leakage"],
+                        }
+                    ],
+                },
+            )
+            self._write_file(repo_root, "LICENSE", "Apache License\nVersion 2.0\n")
+            self._write_file(
+                repo_root,
+                "LICENSE-POLICY.md",
+                "Apache License Version 2.0 source distributions must preserve copyright, NOTICE, modification, and patent notices.\n",
+            )
+            self._write_json(repo_root, "package.json", {"license": "Apache-2.0"})
+            self._write_file(repo_root, "DEPENDENCY-USAGE.md", "dependency usage boundary commercial authorization evidence.\n")
+            self._write_file(
+                repo_root,
+                "src/server/auth.py",
+                "def hash_password(value):\n"
+                "    return argon2.hash(value)\n\n"
+                "def generate_key_directory(path):\n"
+                "    return path\n",
+            )
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_server_sensitive_boundary_policy_rejects_dangerous_patterns_and_secret_material(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_policy_default_module(framework_root)
+            self._write_json(
+                framework_root,
+                "for-demo/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "for-demo",
+                    "module_type": "project",
+                    "description": "Demo server deployment module.",
+                    "last_updated": "2026-04-24",
+                    "project_ids": ["demo"],
+                    "technology_stack": ["Python server deployment service"],
+                    "internal_components": ["Server authentication handler"],
+                    "open_source_components": ["Python standard library"],
+                    "dependency_manifests": ["package.json"],
+                    "security_boundaries": [
+                        "Authentication and authorization implementation can be public when it uses documented standard protocol behavior.",
+                        "Privacy and PII payloads must not be committed in source, examples, or logs.",
+                        "Password storage uses documented KDF behavior or is declared as not storing production passwords.",
+                        "Secret, token, key, and credential material must stay private.",
+                        "Production private material is offline or not committed to GitHub.",
+                        "Permission matrix and route authorization behavior are covered by regression tests.",
+                        "Deployment security config covers TLS, CORS, CSRF, cookie, and debug exposure boundaries.",
+                        "SBOM and CVE dependency vulnerability scan evidence is required for release gates.",
+                        "DAST black-box penetration security regression runs against deployed service surfaces.",
+                        "Runtime secret manager or KMS key rotation owns production secret delivery.",
+                        "Rate limit, anti replay nonce, and idempotency boundaries are documented for externally reachable routes.",
+                        "Log redaction and audit log rules prevent sensitive request data from being written to logs.",
+                        "SSRF egress allowlist and URL allowlist boundaries cover outbound request helpers.",
+                        "Command execution uses subprocess allowlist boundaries and rejects shell injection surfaces.",
+                    ],
+                    "resource_classes": [
+                        {
+                            "id": "server_auth",
+                            "owner": "Server",
+                            "description": "Owns service authentication.",
+                            "scope_globs": ["src/server/**"],
+                            "copying_policy": "No production secrets in public source.",
+                            "concurrency_policy": "Single process.",
+                            "nullability_policy": "Missing users fail closed.",
+                            "cleanup_policy": "No retained state.",
+                            "state_machine": {
+                                "source": "Demo service.",
+                                "states": ["offline", "running", "failed"],
+                                "transitions": [{"from": "offline", "to": "running", "on": "start"}],
+                                "invalid_operations": ["skip signature verification"],
+                            },
+                            "required_tests": ["auth boundary test"],
+                            "required_gates": ["secret scan gate"],
+                            "audit_risks": ["production secret leakage"],
+                        }
+                    ],
+                },
+            )
+            self._write_file(repo_root, "LICENSE", "Apache License\nVersion 2.0\n")
+            self._write_file(
+                repo_root,
+                "LICENSE-POLICY.md",
+                "Apache License Version 2.0 source distributions must preserve copyright, NOTICE, modification, and patent notices.\n",
+            )
+            self._write_json(repo_root, "package.json", {"license": "Apache-2.0"})
+            self._write_file(repo_root, "DEPENDENCY-USAGE.md", "dependency usage boundary commercial authorization evidence.\n")
+            self._write_file(
+                repo_root,
+                "src/server/auth.py",
+                "import hashlib\n"
+                "allow_anonymous=True\n"
+                "Access-Control-Allow-Origin: *\n"
+                "csrf_exempt\n"
+                "httponly=False\n"
+                "default_password = 'password'\n"
+                "flask_debug=1\n"
+                "rate_limit=False\n"
+                "JWT_HEADER = '{\"alg\":\"none\"}'\n"
+                "verify_signature=False\n"
+                "def hash_password(password):\n"
+                "    return hashlib.md5(password.encode()).hexdigest()\n",
+            )
+            self._write_file(
+                repo_root,
+                "src/server/egress.py",
+                "import os\n"
+                "import requests\n"
+                "def run(cmd, url):\n"
+                "    os.system(cmd)\n"
+                "    return requests.get(url)\n",
+            )
+            self._write_file(repo_root, "secrets/private/service.pem", "example private key path\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("server sensitive-boundary policy" in message for message in messages))
+            self.assertTrue(any("auth_bypass_toggle" in message for message in messages))
+            self.assertTrue(any("command_injection_surface" in message for message in messages))
+            self.assertTrue(any("cors_wildcard" in message for message in messages))
+            self.assertTrue(any("csrf_disabled" in message for message in messages))
+            self.assertTrue(any("default_credential" in message for message in messages))
+            self.assertTrue(any("debug_public_exposure" in message for message in messages))
+            self.assertTrue(any("insecure_cookie" in message for message in messages))
+            self.assertTrue(any("jwt_none_algorithm" in message for message in messages))
+            self.assertTrue(any("disabled_verification" in message for message in messages))
+            self.assertTrue(any("rate_limit_disabled" in message for message in messages))
+            self.assertTrue(any("ssrf_unrestricted_fetch" in message for message in messages))
+            self.assertTrue(any("weak_password_hash" in message for message in messages))
+            self.assertTrue(any("deployable secret material" in message for message in messages))
+
+    def test_server_sensitive_boundary_policy_rejects_missing_manifest_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_policy_default_module(framework_root)
+            self._write_json(
+                framework_root,
+                "for-demo/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "for-demo",
+                    "module_type": "project",
+                    "description": "Demo server deployment module.",
+                    "last_updated": "2026-04-24",
+                    "project_ids": ["demo"],
+                    "technology_stack": ["Python server deployment service"],
+                    "internal_components": ["Server authentication handler"],
+                    "open_source_components": ["Python standard library"],
+                    "dependency_manifests": ["package.json"],
+                    "resource_classes": [
+                        {
+                            "id": "server_auth",
+                            "owner": "Server",
+                            "description": "Owns service authentication.",
+                            "scope_globs": ["src/server/**"],
+                            "copying_policy": "No production secrets in public source.",
+                            "concurrency_policy": "Single process.",
+                            "nullability_policy": "Missing users fail closed.",
+                            "cleanup_policy": "No retained state.",
+                            "state_machine": {
+                                "source": "Demo service.",
+                                "states": ["offline", "running", "failed"],
+                                "transitions": [{"from": "offline", "to": "running", "on": "start"}],
+                                "invalid_operations": ["undocumented security boundary"],
+                            },
+                            "required_tests": ["auth boundary test"],
+                            "required_gates": ["secret scan gate"],
+                            "audit_risks": ["production secret leakage"],
+                        }
+                    ],
+                },
+            )
+            self._write_file(repo_root, "LICENSE", "Apache License\nVersion 2.0\n")
+            self._write_file(
+                repo_root,
+                "LICENSE-POLICY.md",
+                "Apache License Version 2.0 source distributions must preserve copyright, NOTICE, modification, and patent notices.\n",
+            )
+            self._write_json(repo_root, "package.json", {"license": "Apache-2.0"})
+            self._write_file(repo_root, "DEPENDENCY-USAGE.md", "dependency usage boundary commercial authorization evidence.\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("project manifest inventory missing security-boundary marker" in message for message in messages))
+
+    def test_server_sensitive_boundary_policy_ignores_non_server_repositories(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_policy_default_module(framework_root)
+            self._write_json(
+                framework_root,
+                "for-demo/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "for-demo",
+                    "module_type": "project",
+                    "description": "Demo local command module.",
+                    "last_updated": "2026-04-24",
+                    "project_ids": ["demo"],
+                    "technology_stack": ["Local CLI utility"],
+                    "internal_components": ["Local command parser"],
+                    "open_source_components": ["Python standard library"],
+                    "dependency_manifests": ["package.json"],
+                    "resource_classes": [
+                        {
+                            "id": "local_cli",
+                            "owner": "CLI",
+                            "description": "Owns local-only command dispatch.",
+                            "scope_globs": ["src/local/**"],
+                            "copying_policy": "No large copies.",
+                            "concurrency_policy": "Single process.",
+                            "nullability_policy": "Missing args fail.",
+                            "cleanup_policy": "No retained state.",
+                            "state_machine": {
+                                "source": "Demo CLI.",
+                                "states": ["idle", "done"],
+                                "transitions": [{"from": "idle", "to": "done", "on": "run"}],
+                                "invalid_operations": ["skip args"],
+                            },
+                            "required_tests": ["cli test"],
+                            "required_gates": ["cli gate"],
+                            "audit_risks": ["bad args"],
+                        }
+                    ],
+                },
+            )
+            self._write_file(repo_root, "LICENSE", "Apache License\nVersion 2.0\n")
+            self._write_file(
+                repo_root,
+                "LICENSE-POLICY.md",
+                "Apache License Version 2.0 source distributions must preserve copyright, NOTICE, modification, and patent notices.\n",
+            )
+            self._write_json(repo_root, "package.json", {"license": "Apache-2.0"})
+            self._write_file(repo_root, "DEPENDENCY-USAGE.md", "dependency usage boundary commercial authorization evidence.\n")
+            self._write_file(repo_root, "src/local/tool.py", "def hash_password(value):\n    return value\n")
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
 
     def test_secret_scanner_redacts_token_findings(self) -> None:
         token = "ghp_" + "abcdefghijklmnopqrstuvwxyz1234567890ABCD"

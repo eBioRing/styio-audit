@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-04-24
 
-This inventory is the baseline required by `modules/default/module.json`. A project module manifest must list `technology_stack`, `internal_components`, `open_source_components`, and `dependency_manifests`; otherwise `styio-audit validate-modules` and every downstream gate fail.
+This inventory is the baseline required by `modules/default/module.json`. A project module manifest must list `technology_stack`, `internal_components`, `open_source_components`, and `dependency_manifests`; otherwise `styio-audit validate-modules` and every downstream gate fail. Server-deployment modules must also document `security_boundaries` for authentication, privacy, password handling, secret/key material, production/offline material, permission matrices, deployment security, dependency vulnerability evidence, DAST/penetration regression, runtime secret management, rate-limit/anti-replay controls, log redaction, SSRF/egress controls, and command-execution boundaries before the audit gate can pass.
 
 `styio` currently maps to the local `styio-nightly` checkout for audit evidence because `/home/unka/styio` is not present in this workspace.
 
@@ -174,6 +174,7 @@ Self-developed components:
 - Default audit module and project-specific audit module manifests.
 - Apache-2.0 license policy and source-distribution notice gate.
 - Commercial-risk dependency and usage-boundary gate.
+- Server-deployment sensitive security boundary gate for authentication, privacy, password handling, key/token material, permission matrices, deployment security, dependency vulnerability evidence, DAST/penetration regression, runtime secret management, rate-limit/anti-replay controls, log redaction, SSRF/egress controls, command-execution boundaries, dangerous crypto/auth patterns, and production secret artifacts.
 - Manifest inventory schema gate.
 - Framework test suite and command wrapper.
 

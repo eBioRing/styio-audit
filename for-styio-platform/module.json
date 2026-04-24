@@ -42,6 +42,22 @@
     "contracts/**/*.json",
     ".github/workflows/*.yml"
   ],
+  "security_boundaries": [
+    "Authentication, authorization, and mTLS identity implementation may be public when it uses documented standard protocol behavior.",
+    "Privacy and PII payloads must not be committed in control-plane examples, contract packs, reports, or logs.",
+    "Password storage is not a production styio-platform responsibility; any password fixture must be fake test data.",
+    "Secret, token, key, and credential material must stay private even when registry key-generation helper code is public.",
+    "Production private material, certificates, signing keys, registry role keys, and generated key bundles are offline or not committed to GitHub.",
+    "Permission matrix and route authorization behavior for platform service, object store, job, worker, and registry mirror routes must be covered by regression tests.",
+    "Deployment security config must document TLS, mTLS, CORS, CSRF, cookie, debug exposure, and regional-node boundaries where applicable.",
+    "SBOM, CVE, and dependency vulnerability scan evidence is required before release or external deployment gates pass.",
+    "DAST black-box penetration security regression must cover deployed platform, registry mirror, and regional-node HTTP surfaces before public deployment.",
+    "Runtime secret manager or KMS key rotation owns production certificates, signing keys, hosted tokens, and registry credentials.",
+    "Rate limit, anti replay nonce, and idempotency boundaries must be documented for platform service, job, worker, object-store, and registry mirror routes.",
+    "Log redaction and audit log rules must prevent request tokens, certificates, object keys, and credentials from being written to logs.",
+    "SSRF egress allowlist and URL allowlist boundaries must cover registry mirror fetches, object-store calls, and outbound control-plane requests.",
+    "Command execution must use subprocess allowlists and reject shell injection surfaces for deployment, registry, and maintenance helpers."
+  ],
   "resource_classes": [
     {
       "id": "native_contract_governance",

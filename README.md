@@ -68,6 +68,13 @@ Commercial-risk policy:
 - The repository must carry dependency usage-boundary evidence in `DEPENDENCY-USAGE.md`, `THIRD-PARTY-NOTICES.md`, or a documented `docs/` equivalent.
 - Every declared dependency discovered in common manifests must be covered by that usage-boundary evidence before the gate can pass.
 
+Server sensitive-boundary policy:
+
+- Open-source repositories whose project module declares server-deployment, server-side, backend, cloud, hosted, control-plane, registry, regional-node, systemd, VM deployment, or worker-control surfaces are treated as server-deployment repositories.
+- Server-deployment project manifests must document authentication/authorization, privacy or PII, password, secret/token/key, production/offline-material, permission-matrix, deployment-security, dependency-vulnerability, DAST/penetration-regression, runtime-secret-management, rate-limit/anti-replay, log-redaction, SSRF/egress, and command-execution boundaries.
+- Standard protocol and algorithm implementations may be public. The gate blocks committed deployable secret material, production `.env` files, private keys, generated key bundles, custom cryptography, auth-bypass toggles, JWT `none` shortcuts, disabled verification, wildcard CORS, disabled CSRF, insecure cookies, weak password hashing, insecure random secret generation, plaintext password handling, command-injection surfaces, unrestricted SSRF-prone fetches, default credentials, public debug exposure, and disabled rate limits.
+- Findings report paths and matched policy categories only; suspected secret values are handled by the redacted secret scanner.
+
 Secret-scan policy:
 
 - Current worktrees are scanned for passwords, tokens, API keys, private keys, client secrets, and access keys.

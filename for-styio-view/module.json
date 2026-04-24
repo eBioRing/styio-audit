@@ -45,6 +45,22 @@
     "frontend/styio_view_app/android/build.gradle.kts files",
     ".github/workflows/*.yml"
   ],
+  "security_boundaries": [
+    "Authentication and authorization implementation may be public for local, hosted, and web adapter protocol behavior.",
+    "Privacy and PII payloads must not be committed in UI fixtures, hosted payload examples, reports, or logs.",
+    "Password storage is not a production styio-view responsibility; any password fixture must be fake test data.",
+    "Secret, token, key, and credential material such as hosted access tokens must come from runtime configuration and stay private.",
+    "Production private material, tokens, certificates, and generated key bundles are offline or not committed to GitHub.",
+    "Permission matrix and route authorization behavior for local, hosted, and web adapter calls must be covered by regression tests.",
+    "Deployment security config must document TLS, CORS, CSRF, cookie, debug exposure, and hosted-control-plane boundaries where applicable.",
+    "SBOM, CVE, and dependency vulnerability scan evidence is required before release or external deployment gates pass.",
+    "DAST black-box penetration security regression must cover hosted adapter and development server HTTP surfaces before public deployment.",
+    "Runtime secret manager or KMS key rotation owns hosted access tokens, certificates, and production credentials.",
+    "Rate limit, anti replay nonce, and idempotency boundaries must be documented for hosted adapter and development server routes.",
+    "Log redaction and audit log rules must prevent hosted tokens, request payloads, and credentials from being written to logs.",
+    "SSRF egress allowlist and URL allowlist boundaries must cover hosted backend calls and any outbound preview or adapter requests.",
+    "Command execution must use subprocess allowlists and reject shell injection surfaces for local toolchain and prototype helpers."
+  ],
   "resource_classes": [
     {
       "id": "workspace_document_state",
