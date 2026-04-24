@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "module_id": "default",
+  "module_type": "default",
+  "description": "Common auditable-code rules shared by all Styio-family repositories.",
+  "last_updated": "2026-04-24",
+  "required_audit_fields": [
+    "**Severity:**",
+    "**Evidence:**",
+    "**Test evidence:**",
+    "**Data lifecycle:**",
+    "**Gate impact:**",
+    "**Required closure:**"
+  ],
+  "required_closure_fields": [
+    "**Closure evidence:**",
+    "**Coverage evidence:**",
+    "**Data lifecycle evidence:**",
+    "**Gate evidence:**"
+  ],
+  "required_checklist_markers": [
+    "Check The Seven Design Principles First",
+    "Verify Lifecycle Test Coverage",
+    "Audit Data Structures, Data Flow, And Lifecycle State Machines",
+    "Optimize Delivery Gates For Quality",
+    "**Data lifecycle:**",
+    "**Gate impact:**"
+  ],
+  "audit_items": [
+    "Design-principle compliance is checked before local style.",
+    "Lifecycle test coverage must be proven with project tools.",
+    "Every non-trivial data/resource structure must have an auditable state machine.",
+    "Delivery gates are judged by quality protection, not by whether current code passes.",
+    "Styio-family repositories must publish Apache-2.0 license evidence and source-distribution obligations.",
+    "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
+    "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
+    "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history."
+  ],
+  "manifest_inventory_policy": {
+    "enabled": true,
+    "required_fields": ["technology_stack", "internal_components", "open_source_components", "dependency_manifests"]
+  },
+  "license_policy": {
+    "enabled": true,
+    "name": "Styio Apache-2.0 source license policy",
+    "license_label": "Apache-2.0",
+    "spdx_identifiers": ["Apache-2.0"],
+    "license_text_markers": ["Apache License", "Version 2.0"],
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "license_files": ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"],
+    "metadata_files": ["pyproject.toml", "package.json", "pubspec.yaml"],
+    "notice_files": ["LICENSE-POLICY.md", "NOTICE", "NOTICE.md", "README.md", "docs/LICENSE-POLICY.md"],
+    "required_notice_markers": ["Apache", "License", "Version 2.0"],
+    "license_obligation": "Styio-family source code is licensed under Apache-2.0; downstream source-derived tools must preserve required license, copyright, NOTICE, modification, and patent-license notices when distributing covered source or binaries."
+  },
+  "commercial_risk_policy": {
+    "enabled": true,
+    "name": "Styio no-commercial-authorization dependency policy",
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "manifest_globs": ["package.json", "**/package.json", "pyproject.toml", "**/pyproject.toml", "pubspec.yaml", "**/pubspec.yaml", "CMakeLists.txt", "**/CMakeLists.txt", "requirements*.txt", "**/requirements*.txt", "Cargo.toml", "**/Cargo.toml", "go.mod", "**/go.mod", "Package.swift", "**/Package.swift", "vcpkg.json", "**/vcpkg.json"],
+    "boundary_files": ["DEPENDENCY-USAGE.md", "THIRD-PARTY-NOTICES.md", "docs/DEPENDENCY-USAGE.md", "docs/dependencies.md", "docs/third-party.md"],
+    "required_boundary_markers": ["dependency|依赖", "commercial|商业", "authorization|授权", "usage boundary|使用边界|边界"],
+    "disallowed_manifest_terms": ["commercial license", "commercial authorization", "paid license", "subscription", "membership", "member-only", "trial license", "evaluation only", "proprietary", "商业授权", "商业许可证", "付费授权", "订阅", "会员制", "试用授权", "专有许可证"],
+    "source_boundary": "All declared dependencies must have audit evidence showing no commercial authorization, subscription, membership, trial-only, or proprietary-use boundary is required."
+  },
+  "secret_scan_policy": {
+    "enabled": true,
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "secret_classes": ["password", "token", "api_key", "private_key", "client_secret", "access_key"],
+    "ignored_path_parts": [".git", ".dart_tool", ".pytest_cache", ".venv", "__pycache__", "build", "dist", "node_modules", "venv"],
+    "max_file_bytes": 1048576,
+    "history_scan_required": true,
+    "history_scan_command": "python3 -m styio_audit.cli secret-history --repo /path/to/repo --project <project> --format json"
+  }
+}
