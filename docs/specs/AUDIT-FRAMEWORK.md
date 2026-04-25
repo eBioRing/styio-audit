@@ -22,7 +22,9 @@ Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions w
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`. That fan-out workflow checks out configured eBioRing target repository branches and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
 
-Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@ai-dev`, fetches `stable`, `nightly`, and `ai-dev` branch evidence from the target repository, and runs the target project gate before protected-branch delivery.
+Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@ai-dev`, and runs the target project gate before protected-branch delivery.
+
+Downstream repositories do not have to prove that every long-lived delivery branch exists before a pull request can merge. They must enforce merge-flow boundaries instead: `ai-dev` may only merge into `ai-dev`, `nightly` may only merge into `nightly`, arbitrary feature branches may target `ai-dev` or `nightly`, and direct pull requests into `stable` are not allowed.
 
 Audit execution must record both the audit framework commit SHA and the target repository commit SHA in the workflow log. CI must not rely on a `styio-audit` binary found on `PATH`, because that can be older than the repository policy.
 
@@ -62,15 +64,16 @@ The manifest inventory fields are blocking audit inputs. If a project module doe
 
 1. Module schema.
 2. Required project manifest inventory lists.
-3. Required `stable`, `nightly`, and `ai-dev` branch evidence from local or remote-tracking git refs.
-4. Resource-class state machines.
-5. Target repository scope globs.
-6. Styio-family Apache-2.0 license evidence and source-distribution notices.
-7. Dependency commercial-risk evidence, including dependency usage boundaries and prohibited commercial authorization markers.
-8. Server-deployment sensitive security boundaries for authentication, privacy, password storage, keys, tokens, and production secret material.
-9. Current-worktree secret evidence for passwords, tokens, API keys, private keys, client secrets, and access keys.
-10. Target defect records when present, unless `--framework-only` is used.
-11. Optional dynamic module hooks.
+3. Required `stable`, `nightly`, and `ai-dev` branch evidence from local or remote-tracking git refs for eBioRing upstream repositories.
+4. Downstream pull request merge-flow boundaries for Unka-Malloc repositories.
+5. Resource-class state machines.
+6. Target repository scope globs.
+7. Styio-family Apache-2.0 license evidence and source-distribution notices.
+8. Dependency commercial-risk evidence, including dependency usage boundaries and prohibited commercial authorization markers.
+9. Server-deployment sensitive security boundaries for authentication, privacy, password storage, keys, tokens, and production secret material.
+10. Current-worktree secret evidence for passwords, tokens, API keys, private keys, client secrets, and access keys.
+11. Target defect records when present, unless `--framework-only` is used.
+12. Optional dynamic module hooks.
 
 Gate failure is based on audit quality. Passing application tests is not enough to override a failed audit framework check.
 

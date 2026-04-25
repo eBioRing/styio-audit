@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from styio_audit.cli import command_report
 from styio_audit.checks import gate, validate_modules
@@ -36,6 +38,9 @@ class FrameworkTests(unittest.TestCase):
         for branch in branches or []:
             subprocess.run(["git", "branch", branch], cwd=root, check=True, text=True, capture_output=True)
 
+    def _set_origin(self, root: Path, url: str) -> None:
+        subprocess.run(["git", "remote", "add", "origin", url], cwd=root, check=True, text=True, capture_output=True)
+
     def _write_branch_policy_default_module(self, framework_root: Path) -> None:
         self._write_json(
             framework_root,
@@ -53,6 +58,29 @@ class FrameworkTests(unittest.TestCase):
                     "enabled": True,
                     "target_project_ids": ["demo"],
                     "required_branches": ["stable", "nightly", "ai-dev"],
+                },
+            },
+        )
+
+    def _write_downstream_flow_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-04-25",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+                "downstream_branch_flow_policy": {
+                    "enabled": True,
+                    "target_repository_owners": ["Unka-Malloc"],
+                    "allowed_base_branches": ["ai-dev", "nightly"],
+                    "same_name_branches": ["ai-dev", "nightly"],
+                    "disallowed_base_branches": ["stable"],
                 },
             },
         )
@@ -487,6 +515,99 @@ class FrameworkTests(unittest.TestCase):
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing required branch `nightly`" in message for message in messages))
+
+    def test_branch_policy_skips_downstream_repository_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-04-25",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "branch_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "target_repository_owners": ["eBioRing"],
+                        "required_branches": ["stable", "nightly", "ai-dev"],
+                    },
+                },
+            )
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_downstream_branch_flow_allows_feature_to_ai_dev(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "ai-dev",
+                "GITHUB_HEAD_REF": "feature/demo",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_downstream_branch_flow_rejects_stable_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "stable",
+                "GITHUB_HEAD_REF": "feature/demo",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("direct pull requests into `stable` are not allowed" in message for message in messages))
+
+    def test_downstream_branch_flow_rejects_cross_lane_merge(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "ai-dev",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("`ai-dev` can only merge into `ai-dev`, not `nightly`" in message for message in messages))
 
     def test_license_and_commercial_policies_accept_valid_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
