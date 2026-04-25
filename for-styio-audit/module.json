@@ -3,7 +3,7 @@
   "module_id": "for-styio-audit",
   "module_type": "project",
   "description": "Project module for the styio-audit framework, module descriptors, reports, and external gate policy.",
-  "last_updated": "2026-04-24",
+  "last_updated": "2026-04-25",
   "project_ids": ["styio-audit", "audit"],
   "technology_stack": [
     "Python 3.10+ audit CLI and framework library",
@@ -21,8 +21,11 @@
     "Sensitive-boundary gate for auth, privacy, password, key, secret-material, deployment-security, dependency-vulnerability, DAST, runtime-secret, rate-limit, log-redaction, SSRF, and command-execution controls",
     "Password, token, API key, private-key, client-secret, and access-key scanner",
     "Manifest inventory schema gate",
+    "eBioRing stable, nightly, and ai-dev branch existence gate",
+    "Unka-Malloc downstream version-promotion pull request branch-flow gate",
     "Framework test suite and command wrapper",
-    "Ecosystem audit fan-out workflow for styio, styio-spio, styio-view, styio-platform, and styio-audit"
+    "Self-promotion audit-self workflow for styio-audit branch promotion",
+    "Ecosystem audit fan-out workflow for eBioRing styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
   ],
   "open_source_components": [
     "Python standard library",
@@ -37,6 +40,7 @@
     "for-styio-view/module.json",
     "for-styio-platform/module.json",
     "for-styio-audit/module.json",
+    ".github/workflows/audit-self.yml",
     ".github/workflows/ecosystem-audit.yml"
   ],
   "resource_classes": [
@@ -44,7 +48,7 @@
       "id": "audit_framework_core",
       "owner": "Audit Framework / CLI",
       "description": "Owns CLI commands, module loading, schema validation, target repository scans, findings, and report serialization.",
-      "scope_globs": ["styio_audit/**", "bin/styio-audit", "pyproject.toml", "tests/**", ".github/workflows/ecosystem-audit.yml"],
+      "scope_globs": ["styio_audit/**", "bin/styio-audit", "pyproject.toml", "tests/**", ".github/workflows/audit-self.yml", ".github/workflows/ecosystem-audit.yml"],
       "copying_policy": "Target repository data must be read only for audit evidence; reports should summarize findings without copying large source payloads.",
       "concurrency_policy": "Audit runs are process-local and read-only; future parallel scans must keep finding collection deterministic.",
       "nullability_policy": "Missing repositories, modules, hooks, fields, and target files must become explicit audit findings or CLI diagnostics.",
@@ -69,11 +73,11 @@
     {
       "id": "styio_license_policy",
       "owner": "Audit Policy / License Governance",
-      "description": "Owns Apache-2.0 policy evidence for Styio-family repositories, source-distribution notice obligations, no-commercial-authorization dependency boundaries, and sensitive security boundaries.",
+      "description": "Owns Apache-2.0 policy evidence for Styio-family repositories, source-distribution notice obligations, no-commercial-authorization dependency boundaries, eBioRing stable/nightly/ai-dev branch evidence, Unka-Malloc downstream version-promotion merge-flow boundaries, and sensitive security boundaries.",
       "scope_globs": ["modules/default/module.json", "README.md", "docs/specs/**", "LICENSE", "LICENSE-POLICY.md", "DEPENDENCY-USAGE.md", "styio_audit/checks.py", "tests/test_framework.py"],
       "copying_policy": "License policy text must reference canonical Apache-2.0 identifiers and avoid copying target repository source into policy findings.",
       "concurrency_policy": "License policy changes must be updated in the default module and documentation in the same delivery.",
-      "nullability_policy": "Missing license files, missing metadata, missing source-distribution notices, and missing sensitive security boundary evidence must fail as explicit audit findings.",
+      "nullability_policy": "Missing license files, missing metadata, missing source-distribution notices, missing eBioRing stable/nightly/ai-dev branch evidence, invalid Unka-Malloc downstream merge flow, and missing sensitive security boundary evidence must fail as explicit audit findings.",
       "cleanup_policy": "Retired license policy wording must be removed from docs and module descriptors together.",
       "state_machine": {
         "source": "Default module license_policy, README, spec docs, unit tests, and per-repo gate output.",
@@ -86,9 +90,9 @@
         ],
         "invalid_operations": ["accepting GPL or proprietary license metadata as the Styio-family policy", "skipping styio-audit itself", "allowing source or binary redistribution without Apache-2.0 notice preservation evidence", "treating a missing license file as a warning"]
       },
-      "required_tests": ["unit tests for passing Apache-2.0 evidence, conflicting license metadata, missing source-distribution notice, commercial-risk dependency boundaries, secret scanning, sensitive security boundary findings, and penetration-resilience hard controls"],
+      "required_tests": ["unit tests for passing Apache-2.0 evidence, conflicting license metadata, missing source-distribution notice, commercial-risk dependency boundaries, eBioRing stable/nightly/ai-dev branch evidence, Unka-Malloc downstream branch-flow enforcement, secret scanning, sensitive security boundary findings, and penetration-resilience hard controls"],
       "required_gates": ["python3 -m styio_audit.cli gate --repo . --project styio-audit --framework-only"],
-      "audit_risks": ["license drift", "metadata conflict", "missing source-distribution notice obligation", "commercial authorization dependency drift", "secret material leakage", "dangerous auth or crypto pattern drift", "missing deployment security evidence", "missing dependency vulnerability evidence", "missing DAST evidence", "missing rate-limit or replay evidence", "missing log-redaction evidence", "missing SSRF or egress evidence", "missing command-execution evidence", "incomplete project coverage"]
+      "audit_risks": ["license drift", "metadata conflict", "missing source-distribution notice obligation", "commercial authorization dependency drift", "missing eBioRing stable/nightly/ai-dev branch", "invalid Unka-Malloc downstream merge flow", "secret material leakage", "dangerous auth or crypto pattern drift", "missing deployment security evidence", "missing dependency vulnerability evidence", "missing DAST evidence", "missing rate-limit or replay evidence", "missing log-redaction evidence", "missing SSRF or egress evidence", "missing command-execution evidence", "incomplete project coverage"]
     }
   ]
 }

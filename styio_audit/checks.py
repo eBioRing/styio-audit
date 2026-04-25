@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -21,6 +22,14 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "internal_components",
     "open_source_components",
     "dependency_manifests",
+]
+DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
+DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
+DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev"]
+DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
+    {"head": "ai-dev", "base": "nightly"},
+    {"head": "nightly", "base": "stable"},
+    {"head": "stable", "base": "main"},
 ]
 DEFAULT_LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"]
 DEFAULT_LICENSE_METADATA_FILES = ["pyproject.toml", "package.json", "pubspec.yaml"]
@@ -371,6 +380,62 @@ def validate_manifest_inventory_policy(policy: Any, module_id: str) -> list[Audi
     return findings
 
 
+def validate_branch_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module branch_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module branch_policy.enabled must be a boolean", module_id))
+    for key in ("target_project_ids", "required_branches", "target_repository_owners"):
+        values, key_findings = get_optional_string_list(policy, key, "module branch_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module branch_policy `{key}` entries must be unique", module_id))
+    required_branches = policy.get("required_branches", DEFAULT_REQUIRED_BRANCHES)
+    if not isinstance(required_branches, list) or not required_branches:
+        findings.append(finding("module branch_policy.required_branches must be a non-empty list", module_id))
+    return findings
+
+
+def validate_downstream_branch_flow_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module downstream_branch_flow_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module downstream_branch_flow_policy.enabled must be a boolean", module_id))
+    for key in ("target_repository_owners", "development_base_branches"):
+        values, key_findings = get_optional_string_list(policy, key, "module downstream_branch_flow_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module downstream_branch_flow_policy `{key}` entries must be unique", module_id))
+    raw_flows = policy.get("required_pull_request_flows", DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS)
+    if not isinstance(raw_flows, list) or not raw_flows:
+        findings.append(finding("module downstream_branch_flow_policy.required_pull_request_flows must be a non-empty list", module_id))
+    else:
+        seen_heads: set[str] = set()
+        for index, item in enumerate(raw_flows):
+            if not isinstance(item, dict):
+                findings.append(finding(f"module downstream_branch_flow_policy.required_pull_request_flows[{index}] must be an object", module_id))
+                continue
+            for key in ("head", "base"):
+                value = item.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    findings.append(
+                        finding(
+                            f"module downstream_branch_flow_policy.required_pull_request_flows[{index}].{key} must be a non-empty string",
+                            module_id,
+                        )
+                    )
+            head = item.get("head")
+            if isinstance(head, str) and head.strip():
+                if head in seen_heads:
+                    findings.append(finding(f"module downstream_branch_flow_policy required flow for `{head}` must be unique", module_id))
+                seen_heads.add(head)
+    return findings
+
+
 def validate_secret_scan_policy(policy: Any, module_id: str) -> list[AuditFinding]:
     if not isinstance(policy, dict):
         return [finding("module secret_scan_policy must be an object", module_id)]
@@ -478,6 +543,10 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_commercial_risk_policy(data["commercial_risk_policy"], module.module_id))
         if "manifest_inventory_policy" in data:
             findings.extend(validate_manifest_inventory_policy(data["manifest_inventory_policy"], module.module_id))
+        if "branch_policy" in data:
+            findings.extend(validate_branch_policy(data["branch_policy"], module.module_id))
+        if "downstream_branch_flow_policy" in data:
+            findings.extend(validate_downstream_branch_flow_policy(data["downstream_branch_flow_policy"], module.module_id))
         if "secret_scan_policy" in data:
             findings.extend(validate_secret_scan_policy(data["secret_scan_policy"], module.module_id))
         if "server_sensitive_boundary_policy" in data:
@@ -862,6 +931,21 @@ def policy_strings(policy: dict[str, Any], key: str, default: list[str]) -> list
     return [item for item in values if isinstance(item, str) and item.strip()]
 
 
+def policy_branch_flows(policy: dict[str, Any], key: str, default: list[dict[str, str]]) -> dict[str, str]:
+    values = policy.get(key, default)
+    if not isinstance(values, list):
+        values = default
+    result: dict[str, str] = {}
+    for item in values:
+        if not isinstance(item, dict):
+            continue
+        head = item.get("head")
+        base = item.get("base")
+        if isinstance(head, str) and head.strip() and isinstance(base, str) and base.strip():
+            result[head.strip()] = base.strip()
+    return result
+
+
 def policy_categories(policy: dict[str, Any], key: str, default: dict[str, list[str]]) -> dict[str, list[str]]:
     raw = policy.get(key, default)
     if not isinstance(raw, dict):
@@ -1138,6 +1222,178 @@ def check_secret_scan_policy(context: AuditContext, files: list[str]) -> list[Au
     return findings
 
 
+def git_ref_exists(repo_root: Path, ref_name: str) -> bool:
+    proc = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", ref_name],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    return proc.returncode == 0
+
+
+def github_owner_from_remote_url(url: str) -> str | None:
+    normalized = url.strip()
+    patterns = [
+        r"^https://github\.com/([^/]+)/[^/]+?(?:\.git)?/?$",
+        r"^git@github\.com:([^/]+)/[^/]+?(?:\.git)?$",
+        r"^ssh://git@github\.com/([^/]+)/[^/]+?(?:\.git)?$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, normalized)
+        if match:
+            return match.group(1)
+    return None
+
+
+def git_repository_owner(repo_root: Path) -> tuple[str | None, str | None]:
+    proc = subprocess.run(
+        ["git", "config", "--get", "remote.origin.url"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return None, "target repository has no remote.origin.url"
+    owner = github_owner_from_remote_url(proc.stdout)
+    if owner is None:
+        return None, "target repository remote.origin.url is not a recognized GitHub URL"
+    return owner, None
+
+
+def git_branch_exists(repo_root: Path, branch: str) -> tuple[bool, str | None]:
+    proc = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return False, "target repository is not a git checkout"
+
+    if git_ref_exists(repo_root, f"refs/heads/{branch}"):
+        return True, None
+
+    proc = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname)", "refs/remotes"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return False, proc.stderr.strip() or proc.stdout.strip() or "cannot list remote refs"
+    suffix = f"/{branch}"
+    for ref in proc.stdout.splitlines():
+        if ref.endswith(suffix) and not ref.endswith("/HEAD"):
+            return True, None
+    return False, None
+
+
+def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("branch_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", []))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"branch policy: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
+
+    required_branches = policy_strings(policy, "required_branches", DEFAULT_REQUIRED_BRANCHES)
+    findings: list[AuditFinding] = []
+    for branch in required_branches:
+        exists, error = git_branch_exists(context.repo_root, branch)
+        if exists:
+            continue
+        if error:
+            findings.append(finding(f"branch policy: {error}; required branch `{branch}` cannot be verified", default.module_id))
+        else:
+            findings.append(
+                finding(
+                    f"branch policy: missing required branch `{branch}` in local or remote-tracking git refs",
+                    default.module_id,
+                )
+            )
+    return findings
+
+
+def check_downstream_branch_flow_policy(context: AuditContext) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("downstream_branch_flow_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS))
+    owner, error = git_repository_owner(context.repo_root)
+    if owner is None:
+        return [finding(f"downstream branch flow: {error}; repository owner cannot be verified", default.module_id)]
+    if target_repository_owners and owner not in target_repository_owners:
+        return []
+
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+    base_ref = os.environ.get("GITHUB_BASE_REF", "")
+    head_ref = os.environ.get("GITHUB_HEAD_REF", "")
+    development_base_branches = set(policy_strings(policy, "development_base_branches", DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES))
+    required_flows = policy_branch_flows(policy, "required_pull_request_flows", DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS)
+    required_heads_by_base: dict[str, list[str]] = {}
+    for head, base in required_flows.items():
+        required_heads_by_base.setdefault(base, []).append(head)
+    allowed_base_branches = development_base_branches | set(required_heads_by_base)
+
+    findings: list[AuditFinding] = []
+    if event_name in {"pull_request", "pull_request_target"} or base_ref or head_ref:
+        if not base_ref or not head_ref:
+            return [
+                finding(
+                    "downstream branch flow: pull request base/head refs are required for merge-flow validation",
+                    default.module_id,
+                )
+            ]
+        if allowed_base_branches and base_ref not in allowed_base_branches:
+            findings.append(
+                finding(
+                    f"downstream branch flow: pull request target `{base_ref}` is not allowed; use {', '.join(sorted(allowed_base_branches))}",
+                    default.module_id,
+                )
+            )
+        expected_base = required_flows.get(head_ref)
+        if expected_base is not None and base_ref != expected_base:
+            findings.append(
+                finding(
+                    f"downstream branch flow: `{head_ref}` can only merge into `{expected_base}`, not `{base_ref}`",
+                    default.module_id,
+                )
+            )
+        required_heads = sorted(required_heads_by_base.get(base_ref, []))
+        if expected_base is None and required_heads:
+            findings.append(
+                finding(
+                    f"downstream branch flow: `{base_ref}` only accepts pull requests from {', '.join(f'`{item}`' for item in required_heads)}",
+                    default.module_id,
+                )
+            )
+        return findings
+
+    return []
+
+
 def check_server_sensitive_boundary_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
     if context.repo_root is None:
         return []
@@ -1302,6 +1558,8 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         for module in context.modules:
             if module.module_type != "default":
                 findings.extend(validate_resource_classes(module, files))
+        findings.extend(check_branch_policy(context))
+        findings.extend(check_downstream_branch_flow_policy(context))
         findings.extend(check_license_policy(context))
         findings.extend(check_commercial_risk_policy(context, files))
         findings.extend(check_secret_scan_policy(context, files))
