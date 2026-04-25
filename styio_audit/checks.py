@@ -28,6 +28,8 @@ DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "styio-spio", "styio-view",
 DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["eBioRing"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH = ".github/workflows/styio-audit.yml"
 DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH = "templates/workflows/styio-audit-local.yml"
+DEFAULT_LOCAL_DELIVERY_FRAMEWORK_PROJECT_IDS = ["styio", "styio-nightly"]
+DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS = ["eBioRing"]
 DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["eBioRing"]
 DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
 DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
@@ -426,6 +428,51 @@ def validate_local_audit_workflow_policy(policy: Any, module_id: str) -> list[Au
     return findings
 
 
+def validate_local_delivery_framework_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module local_delivery_framework_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module local_delivery_framework_policy.enabled must be a boolean", module_id))
+    findings.extend(require_string(policy, "name", "module local_delivery_framework_policy", module_id))
+    for key in ("target_project_ids", "target_repository_owners", "required_files"):
+        values, key_findings = get_optional_string_list(policy, key, "module local_delivery_framework_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module local_delivery_framework_policy `{key}` entries must be unique", module_id))
+
+    required_files = policy.get("required_files", [])
+    if not isinstance(required_files, list) or not required_files:
+        findings.append(finding("module local_delivery_framework_policy.required_files must be a non-empty list", module_id))
+
+    raw_markers = policy.get("required_markers", {})
+    if not isinstance(raw_markers, dict):
+        findings.append(finding("module local_delivery_framework_policy.required_markers must be an object", module_id))
+        return findings
+    for path, markers in raw_markers.items():
+        if not isinstance(path, str) or not path.strip():
+            findings.append(finding("module local_delivery_framework_policy.required_markers keys must be non-empty strings", module_id))
+            continue
+        if not isinstance(markers, list) or not markers:
+            findings.append(finding(f"module local_delivery_framework_policy.required_markers.{path} must be a non-empty list", module_id))
+            continue
+        seen: set[str] = set()
+        for index, marker in enumerate(markers):
+            if not isinstance(marker, str) or not marker.strip():
+                findings.append(
+                    finding(
+                        f"module local_delivery_framework_policy.required_markers.{path}[{index}] must be a non-empty string",
+                        module_id,
+                    )
+                )
+                continue
+            if marker in seen:
+                findings.append(finding(f"module local_delivery_framework_policy.required_markers.{path} entries must be unique", module_id))
+            seen.add(marker)
+    return findings
+
+
 def validate_pull_request_flow_policy(
     policy: Any,
     module_id: str,
@@ -604,6 +651,8 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_branch_policy(data["branch_policy"], module.module_id))
         if "local_audit_workflow_policy" in data:
             findings.extend(validate_local_audit_workflow_policy(data["local_audit_workflow_policy"], module.module_id))
+        if "local_delivery_framework_policy" in data:
+            findings.extend(validate_local_delivery_framework_policy(data["local_delivery_framework_policy"], module.module_id))
         if "upstream_branch_flow_policy" in data:
             findings.extend(validate_upstream_branch_flow_policy(data["upstream_branch_flow_policy"], module.module_id))
         if "downstream_branch_flow_policy" in data:
@@ -1004,6 +1053,20 @@ def policy_branch_flows(policy: dict[str, Any], key: str, default: list[dict[str
         base = item.get("base")
         if isinstance(head, str) and head.strip() and isinstance(base, str) and base.strip():
             result[head.strip()] = base.strip()
+    return result
+
+
+def policy_marker_map(policy: dict[str, Any], key: str) -> dict[str, list[str]]:
+    raw = policy.get(key, {})
+    if not isinstance(raw, dict):
+        return {}
+    result: dict[str, list[str]] = {}
+    for path, markers in raw.items():
+        if not isinstance(path, str) or not path.strip() or not isinstance(markers, list):
+            continue
+        clean_markers = [marker for marker in markers if isinstance(marker, str) and marker.strip()]
+        if clean_markers:
+            result[path.strip()] = clean_markers
     return result
 
 
@@ -1426,6 +1489,68 @@ def check_local_audit_workflow_policy(context: AuditContext, files: list[str]) -
     return []
 
 
+def check_local_delivery_framework_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("local_delivery_framework_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", DEFAULT_LOCAL_DELIVERY_FRAMEWORK_PROJECT_IDS))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"local delivery framework policy: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
+
+    findings: list[AuditFinding] = []
+    required_files = policy_strings(policy, "required_files", [])
+    marker_requirements = policy_marker_map(policy, "required_markers")
+    available_files = set(files)
+
+    for relative in required_files:
+        path = context.repo_root / relative
+        if relative not in available_files or not path.is_file():
+            findings.append(
+                finding(
+                    f"local delivery framework policy: missing required file `{relative}`",
+                    default.module_id,
+                )
+            )
+
+    for relative, markers in sorted(marker_requirements.items()):
+        path = context.repo_root / relative
+        if relative not in available_files or not path.is_file():
+            if relative not in required_files:
+                findings.append(
+                    finding(
+                        f"local delivery framework policy: marker target `{relative}` is missing",
+                        default.module_id,
+                    )
+                )
+            continue
+        text = normalized_text(path.read_text(encoding="utf-8", errors="replace"))
+        for marker in markers:
+            if marker_group_matches(text, marker):
+                continue
+            findings.append(
+                finding(
+                    f"local delivery framework policy: `{relative}` missing required marker `{marker}`",
+                    default.module_id,
+                )
+            )
+    return findings
+
+
 def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -1734,6 +1859,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
     if context.repo_root is not None:
         files = repo_files(context.repo_root)
         findings.extend(check_local_audit_workflow_policy(context, files))
+        findings.extend(check_local_delivery_framework_policy(context, files))
         for module in context.modules:
             if module.module_type != "default":
                 findings.extend(validate_resource_classes(module, files))

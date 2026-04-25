@@ -36,6 +36,7 @@
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
     "eBioRing upstream repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
     "eBioRing upstream repositories must carry a repository-local styio-audit workflow that exactly matches the authoritative template shipped by styio-audit.",
+    "Styio compiler repositories must expose a local delivery framework whose CI, scheduler, workflow documents, and scheduler tests are externally auditable by styio-audit.",
     "eBioRing upstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote through nightly before stable, require nightly to promote to stable, and require stable to promote to main.",
     "Unka-Malloc downstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote to nightly, require nightly to promote to stable, and require stable to promote to main.",
     "AI agent temporary branches should target ai-dev first even when repository governance cannot hard-enforce branch naming.",
@@ -59,6 +60,73 @@
     "target_repository_owners": ["eBioRing"],
     "workflow_path": ".github/workflows/styio-audit.yml",
     "template_path": "templates/workflows/styio-audit-local.yml"
+  },
+  "local_delivery_framework_policy": {
+    "enabled": true,
+    "name": "Styio compiler local delivery framework contract policy",
+    "target_project_ids": ["styio", "styio-nightly"],
+    "target_repository_owners": ["eBioRing"],
+    "required_files": [
+      ".github/workflows/styio-ci-gate.yml",
+      "scripts/workflow-scheduler.py",
+      "scripts/delivery-gate.sh",
+      "scripts/runtime-surface-gate.py",
+      "tests/workflow_scheduler_test.py",
+      "docs/assets/workflow/WORKFLOW-ORCHESTRATION.md",
+      "docs/assets/workflow/SYNTAX-ADDITION-WORKFLOW.md",
+      "docs/assets/workflow/DELIVERY-GATE.md"
+    ],
+    "required_markers": {
+      ".github/workflows/styio-ci-gate.yml": [
+        "name: styio-ci-gate",
+        "python3 scripts/workflow-scheduler.py run --profile ci-prebuild",
+        "styio-ci-gate"
+      ],
+      "scripts/workflow-scheduler.py": [
+        "WORKFLOW_DOCS",
+        "PROFILES",
+        "TOOLS",
+        "workflow-scheduler-check",
+        "workflow-scheduler-tests",
+        "repo-hygiene-tracked",
+        "repo-hygiene-push",
+        "runtime-surface",
+        "team-docs-base",
+        "docs-audit",
+        "ecosystem-cli-docs-workspace",
+        "syntax-local",
+        "delivery-checkpoint",
+        "delivery-push",
+        "ci-prebuild",
+        "WORKFLOW-ORCHESTRATION.md",
+        "SYNTAX-ADDITION-WORKFLOW.md"
+      ],
+      "scripts/delivery-gate.sh": [
+        "scripts/workflow-scheduler.py run",
+        "--profile delivery-checkpoint",
+        "--profile delivery-push"
+      ],
+      "tests/workflow_scheduler_test.py": [
+        "validate_registry",
+        "test_profile_phases_are_ordered",
+        "test_markdown_table_exposes_syntax_workflow"
+      ],
+      "docs/assets/workflow/WORKFLOW-ORCHESTRATION.md": [
+        "Separation Rules",
+        "Audit Table",
+        "Profiles",
+        "python3 scripts/workflow-scheduler.py check"
+      ],
+      "docs/assets/workflow/SYNTAX-ADDITION-WORKFLOW.md": [
+        "Step | Owner | Required Surface | Evidence | Boundary",
+        "python3 scripts/runtime-surface-gate.py",
+        "python3 scripts/workflow-scheduler.py run --profile syntax-local"
+      ],
+      "docs/assets/workflow/DELIVERY-GATE.md": [
+        "python3 scripts/workflow-scheduler.py run --profile delivery-checkpoint",
+        "python3 scripts/workflow-scheduler.py run --profile delivery-push"
+      ]
+    }
   },
   "upstream_branch_flow_policy": {
     "enabled": true,

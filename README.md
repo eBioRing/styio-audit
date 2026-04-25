@@ -46,6 +46,8 @@ Audit logs print the `styio-audit` commit SHA and the target commit SHA. A targe
 
 The authoritative repository-local audit workflow template is stored in [templates/workflows/styio-audit-local.yml](templates/workflows/styio-audit-local.yml). Upstream eBioRing repositories must keep their `.github/workflows/styio-audit.yml` file identical to that template after rendering repository and project placeholders. That template reports the repository-local required check name `styio-audit`, and `styio-audit gate` validates the exact workflow match during submission.
 
+For compiler repositories, `styio-audit` also audits the local delivery-framework contract. The target repository still owns its build, test, parser, runtime, and documentation checks, but the external gate verifies that the local CI entrypoint, workflow scheduler, delivery gate, syntax workflow documents, and scheduler tests remain present and wired through the registered scheduler. This prevents a repository from silently bypassing or replacing its quality framework while still leaving implementation-specific checks inside that repository.
+
 To align repository-local workflows with the released external standard, sync them from `styio-audit@origin/stable`:
 
 ```sh
@@ -91,6 +93,12 @@ Branch policy:
 - The gate accepts either local `refs/heads/<branch>` refs or remote-tracking `refs/remotes/*/<branch>` refs in the target checkout.
 - Missing any required delivery branch is a delivery blocker for upstream repositories because audit, CI, and cross-repository handoff rules must have stable release, nightly, and integration lanes.
 - The detailed promotion model and protected-branch policy are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md).
+
+Local delivery-framework policy:
+
+- Styio compiler repositories must keep `styio-ci-gate`, `workflow-scheduler.py`, `delivery-gate.sh`, runtime-surface checks, workflow-orchestration docs, syntax-addition workflow docs, delivery-gate docs, and scheduler tests in the audited worktree.
+- The external audit checks required markers that prove CI and delivery scripts call the scheduler profiles instead of hand-rolled or bypassed commands.
+- This policy constrains the framework entrypoints and ordering contract. Repository-local tools remain responsible for executing compiler-specific build, test, syntax, runtime, hygiene, and documentation checks.
 
 License policy:
 
