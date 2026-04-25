@@ -31,15 +31,6 @@ jobs:
           - repo: eBioRing/styio-audit
             path: styio-audit
             project: styio-audit
-          - repo: Unka-Malloc/styio-nightly
-            path: styio-nightly
-            project: styio
-          - repo: Unka-Malloc/styio-spio
-            path: styio-spio
-            project: styio-spio
-          - repo: Unka-Malloc/styio-view
-            path: styio-view
-            project: styio-view
           - repo: eBioRing/styio-platform
             path: styio-platform
             project: styio-platform
@@ -110,19 +101,6 @@ jobs:
           - { repo: eBioRing/styio-community, project: styio-community, ref: stable }
           - { repo: eBioRing/styio-community, project: styio-community, ref: nightly }
           - { repo: eBioRing/styio-community, project: styio-community, ref: ai-dev }
-          - { repo: Unka-Malloc/styio-nightly, project: styio, ref: stable }
-          - { repo: Unka-Malloc/styio-nightly, project: styio, ref: nightly }
-          - { repo: Unka-Malloc/styio-nightly, project: styio, ref: ai-dev }
-          - { repo: Unka-Malloc/styio-spio, project: styio-spio, ref: stable }
-          - { repo: Unka-Malloc/styio-spio, project: styio-spio, ref: nightly }
-          - { repo: Unka-Malloc/styio-spio, project: styio-spio, ref: ai-dev }
-          - { repo: Unka-Malloc/styio-view, project: styio-view, ref: stable }
-          - { repo: Unka-Malloc/styio-view, project: styio-view, ref: nightly }
-          - { repo: Unka-Malloc/styio-view, project: styio-view, ref: ai-dev }
-          - { repo: Unka-Malloc/styio-platform, project: styio-platform, ref: main }
-          - { repo: Unka-Malloc/styio-platform, project: styio-platform, ref: stable }
-          - { repo: Unka-Malloc/styio-platform, project: styio-platform, ref: nightly }
-          - { repo: Unka-Malloc/styio-platform, project: styio-platform, ref: ai-dev }
 
     steps:
       - name: Checkout latest styio-audit policy

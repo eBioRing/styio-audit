@@ -23,7 +23,7 @@
     "Manifest inventory schema gate",
     "stable, nightly, and ai-dev branch existence gate",
     "Framework test suite and command wrapper",
-    "Ecosystem audit fan-out workflow for eBioRing and Unka-Malloc styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
+    "Ecosystem audit fan-out workflow for eBioRing styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
   ],
   "open_source_components": [
     "Python standard library",

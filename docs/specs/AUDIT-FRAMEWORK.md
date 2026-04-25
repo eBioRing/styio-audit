@@ -20,7 +20,9 @@ The audited repository does not provide an audit interface. `styio-audit` reads 
 
 Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for every protected delivery branch, check out `eBioRing/styio-audit` from `ai-dev`, fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository.
 
-`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`. That fan-out workflow checks out configured eBioRing and Unka-Malloc target repository branches and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
+`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`. That fan-out workflow checks out configured eBioRing target repository branches and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
+
+Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@ai-dev`, fetches `stable`, `nightly`, and `ai-dev` branch evidence from the target repository, and runs the target project gate before protected-branch delivery.
 
 Audit execution must record both the audit framework commit SHA and the target repository commit SHA in the workflow log. CI must not rely on a `styio-audit` binary found on `PATH`, because that can be older than the repository policy.
 
