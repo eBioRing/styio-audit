@@ -34,7 +34,7 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 ## Cross-Repo Execution
 
-Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for every protected delivery branch. That workflow checks out `eBioRing/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
+Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for managed delivery branches. That workflow checks out `eBioRing/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
 This repository owns two separate workflows:
 
@@ -45,7 +45,9 @@ Audit logs print the `styio-audit` commit SHA and the target commit SHA. A targe
 
 Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
 
-Target repositories must require the `audit` check from the repository-local `styio-audit` workflow. The `styio-audit` repository itself must require only the `audit-self` check for branch promotion. `ecosystem-audit` failures must be triaged as ecosystem findings, not as automatic blockers for `styio-audit` self-promotion.
+Upstream and downstream repositories both allow temporary branches to target `ai-dev` or `nightly`, but promotion pull requests must preserve the managed chain `ai-dev -> nightly -> stable -> main`. Temporary branches must not target `stable` or `main`. AI agent temporary branches are expected to target `ai-dev` first even when branch naming cannot be hard-enforced.
+
+When `ai-dev` and `nightly` are used as direct-push integration lanes, those branches should run audit workflows on `push` but should not require pre-push status checks. Promotion into `stable` and `main` should require the repository-local `audit` check. The `styio-audit` repository itself should require only `audit-self` for promotion into `stable` and `main`. `ecosystem-audit` failures must be triaged as ecosystem findings, not as automatic blockers for `styio-audit` self-promotion.
 
 ## Project Mapping
 
