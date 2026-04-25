@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,6 +25,76 @@ class FrameworkTests(unittest.TestCase):
 
     def _write_json(self, root: Path, relative: str, payload: dict) -> None:
         self._write_file(root, relative, json.dumps(payload, indent=2, sort_keys=True))
+
+    def _init_git_repo(self, root: Path, *, branches: list[str] | None = None) -> None:
+        subprocess.run(["git", "init"], cwd=root, check=True, text=True, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "main"], cwd=root, check=True, text=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "audit@example.invalid"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Audit Test"], cwd=root, check=True)
+        subprocess.run(["git", "add", "."], cwd=root, check=True, text=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=root, check=True, text=True, capture_output=True)
+        for branch in branches or []:
+            subprocess.run(["git", "branch", branch], cwd=root, check=True, text=True, capture_output=True)
+
+    def _write_branch_policy_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-04-25",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+                "branch_policy": {
+                    "enabled": True,
+                    "target_project_ids": ["demo"],
+                    "required_branches": ["stable", "nightly", "ai-dev"],
+                },
+            },
+        )
+
+    def _write_demo_project_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "for-demo/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "for-demo",
+                "module_type": "project",
+                "description": "Demo project module.",
+                "last_updated": "2026-04-25",
+                "project_ids": ["demo"],
+                "technology_stack": ["Demo runtime"],
+                "internal_components": ["Demo component"],
+                "open_source_components": ["Demo OSS"],
+                "dependency_manifests": ["demo.manifest"],
+                "resource_classes": [
+                    {
+                        "id": "demo_resource",
+                        "owner": "Demo owner",
+                        "description": "Demo resource class.",
+                        "scope_globs": ["src/**"],
+                        "copying_policy": "Copies are explicit.",
+                        "concurrency_policy": "Single-writer.",
+                        "nullability_policy": "Nulls are explicit.",
+                        "cleanup_policy": "Resources are cleaned.",
+                        "state_machine": {
+                            "source": "Demo source.",
+                            "states": ["idle", "done"],
+                            "transitions": [{"from": "idle", "to": "done", "on": "finish"}],
+                            "invalid_operations": ["skip"],
+                        },
+                        "required_tests": ["demo test"],
+                        "required_gates": ["demo gate"],
+                        "audit_risks": ["demo risk"],
+                    }
+                ],
+            },
+        )
 
     def _write_policy_default_module(self, framework_root: Path) -> None:
         self._write_json(
@@ -390,6 +461,32 @@ class FrameworkTests(unittest.TestCase):
             self.assertTrue(any("`internal_components` must be a non-empty list" in message for message in messages))
             self.assertTrue(any("`open_source_components` must be a non-empty list" in message for message in messages))
             self.assertTrue(any("`dependency_manifests` must be a non-empty list" in message for message in messages))
+
+    def test_branch_policy_accepts_required_delivery_branches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_branch_policy_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root, branches=["stable", "nightly", "ai-dev"])
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_branch_policy_rejects_missing_required_delivery_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_branch_policy_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root, branches=["stable", "ai-dev"])
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("missing required branch `nightly`" in message for message in messages))
 
     def test_license_and_commercial_policies_accept_valid_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

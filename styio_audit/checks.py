@@ -22,6 +22,7 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "open_source_components",
     "dependency_manifests",
 ]
+DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
 DEFAULT_LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"]
 DEFAULT_LICENSE_METADATA_FILES = ["pyproject.toml", "package.json", "pubspec.yaml"]
 DEFAULT_LICENSE_NOTICE_FILES = ["LICENSE-POLICY.md", "NOTICE", "NOTICE.md", "README.md", "docs/LICENSE-POLICY.md"]
@@ -371,6 +372,24 @@ def validate_manifest_inventory_policy(policy: Any, module_id: str) -> list[Audi
     return findings
 
 
+def validate_branch_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module branch_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module branch_policy.enabled must be a boolean", module_id))
+    for key in ("target_project_ids", "required_branches"):
+        values, key_findings = get_optional_string_list(policy, key, "module branch_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module branch_policy `{key}` entries must be unique", module_id))
+    required_branches = policy.get("required_branches", DEFAULT_REQUIRED_BRANCHES)
+    if not isinstance(required_branches, list) or not required_branches:
+        findings.append(finding("module branch_policy.required_branches must be a non-empty list", module_id))
+    return findings
+
+
 def validate_secret_scan_policy(policy: Any, module_id: str) -> list[AuditFinding]:
     if not isinstance(policy, dict):
         return [finding("module secret_scan_policy must be an object", module_id)]
@@ -478,6 +497,8 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_commercial_risk_policy(data["commercial_risk_policy"], module.module_id))
         if "manifest_inventory_policy" in data:
             findings.extend(validate_manifest_inventory_policy(data["manifest_inventory_policy"], module.module_id))
+        if "branch_policy" in data:
+            findings.extend(validate_branch_policy(data["branch_policy"], module.module_id))
         if "secret_scan_policy" in data:
             findings.extend(validate_secret_scan_policy(data["secret_scan_policy"], module.module_id))
         if "server_sensitive_boundary_policy" in data:
@@ -1138,6 +1159,77 @@ def check_secret_scan_policy(context: AuditContext, files: list[str]) -> list[Au
     return findings
 
 
+def git_ref_exists(repo_root: Path, ref_name: str) -> bool:
+    proc = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", ref_name],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    return proc.returncode == 0
+
+
+def git_branch_exists(repo_root: Path, branch: str) -> tuple[bool, str | None]:
+    proc = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return False, "target repository is not a git checkout"
+
+    if git_ref_exists(repo_root, f"refs/heads/{branch}"):
+        return True, None
+
+    proc = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname)", "refs/remotes"],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        return False, proc.stderr.strip() or proc.stdout.strip() or "cannot list remote refs"
+    suffix = f"/{branch}"
+    for ref in proc.stdout.splitlines():
+        if ref.endswith(suffix) and not ref.endswith("/HEAD"):
+            return True, None
+    return False, None
+
+
+def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("branch_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    required_branches = policy_strings(policy, "required_branches", DEFAULT_REQUIRED_BRANCHES)
+    findings: list[AuditFinding] = []
+    for branch in required_branches:
+        exists, error = git_branch_exists(context.repo_root, branch)
+        if exists:
+            continue
+        if error:
+            findings.append(finding(f"branch policy: {error}; required branch `{branch}` cannot be verified", default.module_id))
+        else:
+            findings.append(
+                finding(
+                    f"branch policy: missing required branch `{branch}` in local or remote-tracking git refs",
+                    default.module_id,
+                )
+            )
+    return findings
+
+
 def check_server_sensitive_boundary_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
     if context.repo_root is None:
         return []
@@ -1302,6 +1394,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         for module in context.modules:
             if module.module_type != "default":
                 findings.extend(validate_resource_classes(module, files))
+        findings.extend(check_branch_policy(context))
         findings.extend(check_license_policy(context))
         findings.extend(check_commercial_risk_policy(context, files))
         findings.extend(check_secret_scan_policy(context, files))

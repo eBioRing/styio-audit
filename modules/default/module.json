@@ -3,7 +3,7 @@
   "module_id": "default",
   "module_type": "default",
   "description": "Common auditable-code rules shared by all Styio-family repositories.",
-  "last_updated": "2026-04-24",
+  "last_updated": "2026-04-25",
   "required_audit_fields": [
     "**Severity:**",
     "**Evidence:**",
@@ -34,12 +34,18 @@
     "Styio-family repositories must publish Apache-2.0 license evidence and source-distribution obligations.",
     "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
+    "Styio-family repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
     "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history.",
     "Open-source repositories with server-deployment surfaces may publish standard auth, privacy, password-storage, and key-generation implementations only when secrets and production materials stay private and dangerous security patterns are blocked."
   ],
   "manifest_inventory_policy": {
     "enabled": true,
     "required_fields": ["technology_stack", "internal_components", "open_source_components", "dependency_manifests"]
+  },
+  "branch_policy": {
+    "enabled": true,
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
+    "required_branches": ["stable", "nightly", "ai-dev"]
   },
   "license_policy": {
     "enabled": true,

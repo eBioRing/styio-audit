@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the centralized, modular auditable-code framework for Styio-family repositories.
 
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-25
 
 `styio-audit` loads common audit rules first, then dynamically loads one or more project-specific modules for the target repository. The target project does not provide an audit API, wrapper, plugin, or gate integration; the auditor runs this repository externally against a filesystem path.
 
@@ -34,11 +34,15 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 ## Cross-Repo Execution
 
-Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch. That workflow checks out `eBioRing/styio-audit` at `ai-dev` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
+Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for every protected delivery branch. That workflow checks out `eBioRing/styio-audit` at `ai-dev` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
-This repository also owns `.github/workflows/ecosystem-audit.yml`. On every `ai-dev` push to `styio-audit`, it checks out the latest target repositories on `ai-dev` and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+This repository also owns `.github/workflows/ecosystem-audit.yml`. On pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`, it checks out the configured eBioRing and Unka-Malloc Styio-family repositories across their delivery branches and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes.
 
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its `styio-audit` workflow as a required status check before merging protected branches.
+
+Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
+
+Target repositories must require the `audit` check from the `styio-audit` workflow. This repository must require the `audit-targets (...)` matrix checks from `ecosystem-audit` so audit-framework changes prove the current framework against the Styio ecosystem before merge.
 
 ## Project Mapping
 
@@ -63,6 +67,12 @@ Manifest inventory policy:
 - Every project module manifest must list `technology_stack`, `internal_components`, `open_source_components`, and `dependency_manifests`.
 - Missing inventory lists are schema failures because license, commercial-risk, ownership, and usage-boundary checks cannot be trusted without them.
 - The baseline inventory is documented in `docs/specs/TECHNOLOGY-COMPONENT-INVENTORY.md`.
+
+Branch policy:
+
+- Every Styio-family repository in audit scope must expose `stable`, `nightly`, and `ai-dev` branches.
+- The gate accepts either local `refs/heads/<branch>` refs or remote-tracking `refs/remotes/*/<branch>` refs in the target checkout.
+- Missing any required delivery branch is a delivery blocker because audit, CI, and cross-repository handoff rules must have stable release, nightly, and integration lanes.
 
 License policy:
 
