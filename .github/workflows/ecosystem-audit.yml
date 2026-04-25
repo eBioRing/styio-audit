@@ -30,11 +30,11 @@ jobs:
             project: styio-platform
 
     steps:
-      - name: Checkout latest styio-audit policy
+      - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
           repository: eBioRing/styio-audit
-          ref: ai-dev
+          ref: stable
           path: styio-audit
 
       - name: Checkout target repository
@@ -97,11 +97,11 @@ jobs:
           - { repo: eBioRing/styio-community, project: styio-community, ref: ai-dev }
 
     steps:
-      - name: Checkout latest styio-audit policy
+      - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
           repository: eBioRing/styio-audit
-          ref: ai-dev
+          ref: stable
           path: styio-audit
 
       - name: Checkout target repository
