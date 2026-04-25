@@ -20,7 +20,9 @@ The audited repository does not provide an audit interface. `styio-audit` reads 
 
 Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for every protected delivery branch, check out `eBioRing/styio-audit` from `ai-dev`, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository. eBioRing upstream checks must also fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence before running the gate.
 
-`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`. That fan-out workflow checks out configured eBioRing target repository branches and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
+`styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/audit-self.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for protected delivery branches. It validates module schema, unit tests, and the `styio-audit` self gate. This `audit-self` job is the only status check that should be required for `styio-audit` branch promotion.
+
+`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out configured eBioRing target repository branches and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
 Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@ai-dev`, and runs the target project gate before protected-branch delivery.
 
@@ -36,9 +38,10 @@ Required governance state:
 
 1. `ai-dev` and protected default or release branches must be covered by active GitHub Rulesets.
 2. Target repositories must require the `audit` status check from the repository-local `styio-audit` workflow.
-3. `styio-audit` must require every `audit-targets (...)` matrix status check from `ecosystem-audit`.
-4. Required status checks must use strict mode so the merge head is up to date with the protected base branch.
-5. Ruleset bypass actors must be explicitly reviewed and must not include broad maintainer bypass for normal delivery.
+3. `styio-audit` must require the `audit-self` status check for branch promotion.
+4. `ecosystem-audit` must remain visible as an active patrol but must not be a required status check for `styio-audit` self-promotion.
+5. Required status checks must use strict mode so the merge head is up to date with the protected base branch.
+6. Ruleset bypass actors must be explicitly reviewed and must not include broad maintainer bypass for normal delivery.
 
 Audit tooling and manual reviews must inspect effective rules, for example `GET /repos/{owner}/{repo}/rules/branches/{branch}`. The legacy classic endpoint `GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks` is informational only for Styio governance and can return 404 when Rulesets are correctly enforcing the gate.
 

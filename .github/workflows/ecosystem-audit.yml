@@ -1,12 +1,6 @@
 name: ecosystem-audit
 
 on:
-  pull_request:
-    branches:
-      - main
-      - stable
-      - nightly
-      - ai-dev
   push:
     branches:
       - main

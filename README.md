@@ -36,13 +36,16 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for every protected delivery branch. That workflow checks out `eBioRing/styio-audit` at `ai-dev` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
-This repository also owns `.github/workflows/ecosystem-audit.yml`. On pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`, it checks out the configured eBioRing Styio-family repositories across their delivery branches and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
+This repository owns two separate workflows:
 
-Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its `styio-audit` workflow as a required status check before merging protected branches.
+- `.github/workflows/audit-self.yml` validates `styio-audit` itself. This is the only workflow that should be required for `styio-audit` branch promotion.
+- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out the configured eBioRing Styio-family repositories across their delivery branches and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
+
+Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
 
 Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
 
-Target repositories must require the `audit` check from the `styio-audit` workflow. This repository must require the `audit-targets (...)` matrix checks from `ecosystem-audit` so audit-framework changes prove the current framework against the Styio ecosystem before merge.
+Target repositories must require the `audit` check from the repository-local `styio-audit` workflow. The `styio-audit` repository itself must require only the `audit-self` check for branch promotion. `ecosystem-audit` failures must be triaged as ecosystem findings, not as automatic blockers for `styio-audit` self-promotion.
 
 ## Project Mapping
 
