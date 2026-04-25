@@ -46,6 +46,17 @@ Audit logs print the `styio-audit` commit SHA and the target commit SHA. A targe
 
 The authoritative repository-local audit workflow template is stored in [templates/workflows/styio-audit-local.yml](templates/workflows/styio-audit-local.yml). Upstream eBioRing repositories must keep their `.github/workflows/styio-audit.yml` file identical to that template after rendering repository and project placeholders. That template reports the repository-local required check name `styio-audit`, and `styio-audit gate` validates the exact workflow match during submission.
 
+To align repository-local workflows with the released external standard, sync them from `styio-audit@origin/stable`:
+
+```sh
+python3 -m styio_audit.cli sync-local-workflow --repo /home/unka/eBioRing/styio --project styio --framework-ref origin/stable
+python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /home/unka/eBioRing --framework-ref origin/stable
+python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /home/unka/eBioRing --framework-ref origin/stable --check
+./scripts/sync-upstream-local-workflows.sh --workspace-root /home/unka/eBioRing --framework-ref origin/stable
+```
+
+Use `--framework-ref HEAD` only when preparing an unreleased workflow-template change on `ai-dev`; protected-branch delivery should continue to consume the released `origin/stable` template.
+
 Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
 
 Branch-flow and Ruleset details are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md). In summary: temporary branches and `ai-dev` are writable audit lanes, while `nightly`, `stable`, and `main` are pull-request-only promotion gates. Promotion into `nightly` must reuse a SHA that has already completed `audit-self-essential` in the same repository. `ecosystem-audit` failures remain ecosystem findings and must not be used as `styio-audit` self-promotion blockers.
