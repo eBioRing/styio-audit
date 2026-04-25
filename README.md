@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the centralized, modular auditable-code framework for Styio-family repositories.
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-04-26
 
 `styio-audit` loads common audit rules first, then dynamically loads one or more project-specific modules for the target repository. The target project does not provide an audit API, wrapper, plugin, or gate integration; the auditor runs this repository externally against a filesystem path.
 
@@ -34,12 +34,12 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 ## Cross-Repo Execution
 
-Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for every protected delivery branch. That workflow checks out `eBioRing/styio-audit` at `ai-dev` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
+Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for every protected delivery branch. That workflow checks out `eBioRing/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
 This repository owns two separate workflows:
 
 - `.github/workflows/audit-self.yml` validates `styio-audit` itself. This is the only workflow that should be required for `styio-audit` branch promotion.
-- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out the configured eBioRing Styio-family repositories across their delivery branches and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
+- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then checks out the configured eBioRing Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
 
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
 
