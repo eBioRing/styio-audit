@@ -54,6 +54,7 @@ class AuditContext:
     project: str | None
     modules: list[AuditModule]
     framework_only: bool = False
+    skip_branch_governance: bool = False
 
     def as_hook_context(self) -> dict[str, Any]:
         return {
@@ -62,6 +63,7 @@ class AuditContext:
             "project": self.project,
             "modules": self.modules,
             "framework_only": self.framework_only,
+            "skip_branch_governance": self.skip_branch_governance,
         }
 
 
@@ -74,6 +76,7 @@ class AuditReport:
     repo_root: Path | None
     project: str | None
     framework_only: bool
+    skip_branch_governance: bool
     modules: list[AuditModule]
     findings: list[AuditFinding]
 
@@ -99,6 +102,7 @@ class AuditReport:
                 "repo_root": self.repo_root.as_posix() if self.repo_root is not None else None,
                 "project": self.project,
                 "framework_only": self.framework_only,
+                "skip_branch_governance": self.skip_branch_governance,
             },
             "modules": [module.to_dict(framework_root=self.framework_root) for module in self.modules],
             "summary": self.summary(),

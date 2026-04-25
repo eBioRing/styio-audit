@@ -19,6 +19,7 @@ def build_audit_report(context: AuditContext, findings: list[AuditFinding]) -> A
         repo_root=context.repo_root,
         project=context.project,
         framework_only=context.framework_only,
+        skip_branch_governance=context.skip_branch_governance,
         modules=context.modules,
         findings=findings,
     )
@@ -34,6 +35,7 @@ def render_audit_report(report: AuditReport, *, fmt: str) -> str:
         f"  repo: {report.repo_root.as_posix() if report.repo_root is not None else '<none>'}",
         f"  project: {report.project or '<none>'}",
         f"  framework-only: {'yes' if report.framework_only else 'no'}",
+        f"  skip-branch-governance: {'yes' if report.skip_branch_governance else 'no'}",
         f"  modules: {len(report.modules)}",
         f"  findings: {report.summary()['finding_count']}",
     ]
