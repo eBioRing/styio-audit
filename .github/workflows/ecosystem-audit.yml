@@ -1,8 +1,17 @@
 name: ecosystem-audit
 
 on:
+  pull_request:
+    branches:
+      - main
+      - stable
+      - nightly
+      - ai-dev
   push:
     branches:
+      - main
+      - stable
+      - nightly
       - ai-dev
   workflow_dispatch:
 
@@ -22,15 +31,6 @@ jobs:
           - repo: eBioRing/styio-audit
             path: styio-audit
             project: styio-audit
-          - repo: Unka-Malloc/styio-nightly
-            path: styio-nightly
-            project: styio
-          - repo: Unka-Malloc/styio-spio
-            path: styio-spio
-            project: styio-spio
-          - repo: Unka-Malloc/styio-view
-            path: styio-view
-            project: styio-view
           - repo: eBioRing/styio-platform
             path: styio-platform
             project: styio-platform
@@ -39,6 +39,7 @@ jobs:
       - name: Checkout latest styio-audit policy
         uses: actions/checkout@v5
         with:
+          repository: eBioRing/styio-audit
           ref: ai-dev
           path: styio-audit
 
@@ -48,6 +49,7 @@ jobs:
         with:
           repository: ${{ matrix.target.repo }}
           ref: ai-dev
+          fetch-depth: 0
           path: ${{ matrix.target.path }}
 
       - name: Set up standardized Python
@@ -59,6 +61,75 @@ jobs:
         run: |
           git -C styio-audit rev-parse HEAD
           git -C "${{ matrix.target.path }}" rev-parse HEAD
+          for branch in stable nightly ai-dev; do
+            git -C "${{ matrix.target.path }}" fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
+          done
           python3 styio-audit/bin/styio-audit gate \
             --repo "${{ matrix.target.path }}" \
+            --project "${{ matrix.target.project }}"
+
+  audit-branch-targets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      STYIO_PYTHON_VERSION: "3.13.5"
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { repo: eBioRing/Styio, project: styio, ref: main }
+          - { repo: eBioRing/Styio, project: styio, ref: stable }
+          - { repo: eBioRing/Styio, project: styio, ref: nightly }
+          - { repo: eBioRing/Styio, project: styio, ref: ai-dev }
+          - { repo: eBioRing/styio-spio, project: styio-spio, ref: main }
+          - { repo: eBioRing/styio-spio, project: styio-spio, ref: stable }
+          - { repo: eBioRing/styio-spio, project: styio-spio, ref: nightly }
+          - { repo: eBioRing/styio-spio, project: styio-spio, ref: ai-dev }
+          - { repo: eBioRing/styio-view, project: styio-view, ref: main }
+          - { repo: eBioRing/styio-view, project: styio-view, ref: stable }
+          - { repo: eBioRing/styio-view, project: styio-view, ref: nightly }
+          - { repo: eBioRing/styio-view, project: styio-view, ref: ai-dev }
+          - { repo: eBioRing/styio-audit, project: styio-audit, ref: main }
+          - { repo: eBioRing/styio-audit, project: styio-audit, ref: stable }
+          - { repo: eBioRing/styio-audit, project: styio-audit, ref: nightly }
+          - { repo: eBioRing/styio-audit, project: styio-audit, ref: ai-dev }
+          - { repo: eBioRing/styio-platform, project: styio-platform, ref: main }
+          - { repo: eBioRing/styio-platform, project: styio-platform, ref: stable }
+          - { repo: eBioRing/styio-platform, project: styio-platform, ref: nightly }
+          - { repo: eBioRing/styio-platform, project: styio-platform, ref: ai-dev }
+          - { repo: eBioRing/styio-community, project: styio-community, ref: main }
+          - { repo: eBioRing/styio-community, project: styio-community, ref: stable }
+          - { repo: eBioRing/styio-community, project: styio-community, ref: nightly }
+          - { repo: eBioRing/styio-community, project: styio-community, ref: ai-dev }
+
+    steps:
+      - name: Checkout latest styio-audit policy
+        uses: actions/checkout@v5
+        with:
+          repository: eBioRing/styio-audit
+          ref: ai-dev
+          path: styio-audit
+
+      - name: Checkout target repository
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.target.repo }}
+          ref: ${{ matrix.target.ref }}
+          fetch-depth: 0
+          path: target
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Run latest styio-audit gate
+        run: |
+          git -C styio-audit rev-parse HEAD
+          git -C target rev-parse HEAD
+          for branch in stable nightly ai-dev; do
+            git -C target fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
+          done
+          python3 styio-audit/bin/styio-audit gate \
+            --repo target \
             --project "${{ matrix.target.project }}"
