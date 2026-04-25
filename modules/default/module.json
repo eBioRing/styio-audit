@@ -3,7 +3,7 @@
   "module_id": "default",
   "module_type": "default",
   "description": "Common auditable-code rules shared by all Styio-family repositories.",
-  "last_updated": "2026-04-24",
+  "last_updated": "2026-04-25",
   "required_audit_fields": [
     "**Severity:**",
     "**Evidence:**",
@@ -34,12 +34,30 @@
     "Styio-family repositories must publish Apache-2.0 license evidence and source-distribution obligations.",
     "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
+    "eBioRing upstream repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
+    "Unka-Malloc downstream repositories must follow the version promotion chain feature branch to ai-dev, ai-dev to nightly, nightly to stable, and stable to main.",
     "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history.",
     "Open-source repositories with server-deployment surfaces may publish standard auth, privacy, password-storage, and key-generation implementations only when secrets and production materials stay private and dangerous security patterns are blocked."
   ],
   "manifest_inventory_policy": {
     "enabled": true,
     "required_fields": ["technology_stack", "internal_components", "open_source_components", "dependency_manifests"]
+  },
+  "branch_policy": {
+    "enabled": true,
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
+    "target_repository_owners": ["eBioRing"],
+    "required_branches": ["stable", "nightly", "ai-dev"]
+  },
+  "downstream_branch_flow_policy": {
+    "enabled": true,
+    "target_repository_owners": ["Unka-Malloc"],
+    "development_base_branches": ["ai-dev"],
+    "required_pull_request_flows": [
+      {"head": "ai-dev", "base": "nightly"},
+      {"head": "nightly", "base": "stable"},
+      {"head": "stable", "base": "main"}
+    ]
   },
   "license_policy": {
     "enabled": true,
