@@ -26,7 +26,7 @@
     "Unka-Malloc downstream version-promotion pull request branch-flow gate",
     "Framework test suite and command wrapper",
     "Self-audit essential workflow for all styio-audit branches",
-    "Self-audit complete workflow for stable and main promotion gates",
+    "Self-audit workflow for nightly, stable, and main promotion gates",
     "Ecosystem audit fan-out workflow for eBioRing styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
   ],
   "open_source_components": [
@@ -44,7 +44,7 @@
     "for-styio-audit/module.json",
     "templates/workflows/styio-audit-local.yml",
     ".github/workflows/audit-self-essential.yml",
-    ".github/workflows/audit-self-complete.yml",
+    ".github/workflows/audit-self.yml",
     ".github/workflows/ecosystem-audit.yml"
   ],
   "resource_classes": [
@@ -52,7 +52,7 @@
       "id": "audit_framework_core",
       "owner": "Audit Framework / CLI",
       "description": "Owns CLI commands, module loading, schema validation, target repository scans, findings, and report serialization.",
-      "scope_globs": ["styio_audit/**", "bin/styio-audit", "pyproject.toml", "tests/**", "templates/workflows/styio-audit-local.yml", ".github/workflows/audit-self-essential.yml", ".github/workflows/audit-self-complete.yml", ".github/workflows/ecosystem-audit.yml"],
+      "scope_globs": ["styio_audit/**", "bin/styio-audit", "pyproject.toml", "tests/**", "templates/workflows/styio-audit-local.yml", ".github/workflows/audit-self-essential.yml", ".github/workflows/audit-self.yml", ".github/workflows/ecosystem-audit.yml"],
       "copying_policy": "Target repository data must be read only for audit evidence; reports should summarize findings without copying large source payloads.",
       "concurrency_policy": "Audit runs are process-local and read-only; future parallel scans must keep finding collection deterministic.",
       "nullability_policy": "Missing repositories, modules, hooks, fields, and target files must become explicit audit findings or CLI diagnostics.",

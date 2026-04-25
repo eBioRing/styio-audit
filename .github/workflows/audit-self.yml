@@ -1,14 +1,16 @@
-name: audit-self-complete
+name: audit-self
 
 on:
   pull_request:
     branches:
       - main
       - stable
+      - nightly
   push:
     branches:
       - main
       - stable
+      - nightly
   merge_group:
   workflow_dispatch:
 
@@ -16,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  audit-self-complete:
+  audit-self:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -33,7 +35,7 @@ jobs:
         with:
           python-version: ${{ env.STYIO_PYTHON_VERSION }}
 
-      - name: Run styio-audit complete self gate
+      - name: Run styio-audit self gate
         run: |
           git rev-parse HEAD
           for branch in stable nightly ai-dev; do

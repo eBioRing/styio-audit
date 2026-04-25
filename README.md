@@ -39,7 +39,7 @@ Every Styio-family target repository must run a dedicated `styio-audit` GitHub A
 This repository owns two separate workflows:
 
 - `.github/workflows/audit-self-essential.yml` validates `styio-audit` on every branch. It keeps module, documentation, schema, and security checks active on temporary branches while skipping branch-governance enforcement.
-- `.github/workflows/audit-self-complete.yml` validates `styio-audit` for `stable` and `main` promotion. This is the only workflow that should be required for `styio-audit` promotion into `stable` and `main`.
+- `.github/workflows/audit-self.yml` validates `styio-audit` for `nightly`, `stable`, and `main` promotion. This is the workflow that should be required for `styio-audit` promotion into protected promotion branches.
 - `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then checks out the configured eBioRing Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
 
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
@@ -61,7 +61,7 @@ Use `--framework-ref HEAD` only when preparing an unreleased workflow-template c
 
 Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
 
-Branch-flow and Ruleset details are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md). In summary: temporary branches and `ai-dev` are writable audit lanes, while `nightly`, `stable`, and `main` are pull-request-only promotion gates. Promotion into `nightly` must reuse a SHA that has already completed `audit-self-essential` in the same repository. `ecosystem-audit` failures remain ecosystem findings and must not be used as `styio-audit` self-promotion blockers.
+Branch-flow and Ruleset details are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md). In summary: temporary branches and `ai-dev` are writable audit lanes, while `nightly`, `stable`, and `main` are pull-request-only promotion gates that require `audit-self`. `ecosystem-audit` failures remain ecosystem findings and must not be used as `styio-audit` self-promotion blockers.
 
 ## Project Mapping
 
