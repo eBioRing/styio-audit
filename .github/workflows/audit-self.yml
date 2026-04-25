@@ -1,0 +1,48 @@
+name: audit-self
+
+on:
+  pull_request:
+    branches:
+      - main
+      - stable
+      - nightly
+      - ai-dev
+  push:
+    branches:
+      - main
+      - stable
+      - nightly
+      - ai-dev
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-self:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      STYIO_PYTHON_VERSION: "3.13.5"
+
+    steps:
+      - name: Checkout styio-audit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Run styio-audit self gate
+        run: |
+          git rev-parse HEAD
+          for branch in stable nightly ai-dev; do
+            git fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
+          done
+          python3 -m unittest discover -s tests -v
+          python3 -m styio_audit.cli validate-modules
+          python3 -m styio_audit.cli gate --repo . --project styio-audit --framework-only
