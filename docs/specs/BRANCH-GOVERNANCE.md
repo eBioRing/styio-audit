@@ -58,7 +58,7 @@ Required policy shape:
 
 1. `nightly`, `stable`, and `main` must require pull requests before merging.
 2. `nightly` must require `audit-self-essential`.
-3. `stable` and `main` must require `audit-self-complete` for `styio-audit`, and the repository-local `audit` check for target repositories.
+3. `stable` and `main` must require `audit-self-complete` for `styio-audit`, and the repository-local `styio-audit` check for target repositories.
 4. `temporary branch` and `ai-dev` must remain writable so new SHAs can be created and audited before promotion.
 5. `audit-self-essential` must still run on every branch push so writable branches always produce current audit evidence.
 6. `ecosystem-audit` must remain informational for `styio-audit` self-promotion and must not be configured as a required status check.
