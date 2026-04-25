@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the centralized, modular auditable-code framework for Styio-family repositories.
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-04-26
 
 `styio-audit` loads common audit rules first, then dynamically loads one or more project-specific modules for the target repository. The target project does not provide an audit API, wrapper, plugin, or gate integration; the auditor runs this repository externally against a filesystem path.
 
@@ -34,18 +34,21 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 ## Cross-Repo Execution
 
-Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for every protected delivery branch. That workflow checks out `eBioRing/styio-audit` at `ai-dev` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
+Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for managed delivery branches. That workflow checks out `eBioRing/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
 This repository owns two separate workflows:
 
-- `.github/workflows/audit-self.yml` validates `styio-audit` itself. This is the only workflow that should be required for `styio-audit` branch promotion.
-- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out the configured eBioRing Styio-family repositories across their delivery branches and runs the current audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
+- `.github/workflows/audit-self-essential.yml` validates `styio-audit` on every branch. It keeps module, documentation, schema, and security checks active on temporary branches while skipping branch-governance enforcement.
+- `.github/workflows/audit-self-complete.yml` validates `styio-audit` for `stable` and `main` promotion. This is the only workflow that should be required for `styio-audit` promotion into `stable` and `main`.
+- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then checks out the configured eBioRing Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
 
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
 
 Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
 
-Target repositories must require the `audit` check from the repository-local `styio-audit` workflow. The `styio-audit` repository itself must require only the `audit-self` check for branch promotion. `ecosystem-audit` failures must be triaged as ecosystem findings, not as automatic blockers for `styio-audit` self-promotion.
+Upstream and downstream repositories both allow temporary branches to target `ai-dev` or `nightly`, but promotion pull requests must preserve the managed chain `ai-dev -> nightly -> stable -> main`. Temporary branches must not target `stable` or `main`. AI agent temporary branches are expected to target `ai-dev` first even when branch naming cannot be hard-enforced.
+
+When `ai-dev`, `nightly`, and temporary branches are used as direct-push integration lanes, those branches should run audit workflows on `push` but should not require pre-push promotion checks. `audit-self-essential` should remain active on every branch. Promotion into `stable` and `main` should require the repository-local `audit` check. The `styio-audit` repository itself should require only `audit-self-complete` for promotion into `stable` and `main`. `ecosystem-audit` failures must be triaged as ecosystem findings, not as automatic blockers for `styio-audit` self-promotion.
 
 ## Project Mapping
 
