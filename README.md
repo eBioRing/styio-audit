@@ -73,7 +73,8 @@ Branch policy:
 - Every eBioRing upstream repository in audit scope must expose `stable`, `nightly`, and `ai-dev` branches.
 - The gate accepts either local `refs/heads/<branch>` refs or remote-tracking `refs/remotes/*/<branch>` refs in the target checkout.
 - Missing any required delivery branch is a delivery blocker for upstream repositories because audit, CI, and cross-repository handoff rules must have stable release, nightly, and integration lanes.
-- Downstream repositories are not required to prove long-lived branch existence before merge. Their pull request flow is restricted instead: `ai-dev` may only merge into `ai-dev`, `nightly` may only merge into `nightly`, arbitrary feature branches may target `ai-dev` or `nightly`, and direct pull requests into `stable` are rejected.
+- Downstream repositories are not required to prove long-lived branch existence before merge. Their pull request flow is restricted instead: arbitrary feature branches may target `ai-dev`, `ai-dev` may only merge into `nightly`, `nightly` may only merge into `stable`, and `stable` may only merge into `main`.
+- Direct updates to downstream `main`, `stable`, and `nightly` must be blocked by GitHub Rulesets that require pull requests; `styio-audit` validates the pull request head/base pair before merge.
 
 License policy:
 

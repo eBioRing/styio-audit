@@ -18,13 +18,13 @@ The audited repository does not provide an audit interface. `styio-audit` reads 
 
 ## Execution Contract
 
-Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for every protected delivery branch, check out `eBioRing/styio-audit` from `ai-dev`, fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository.
+Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for every protected delivery branch, check out `eBioRing/styio-audit` from `ai-dev`, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository. eBioRing upstream checks must also fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence before running the gate.
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pull requests and pushes to `main`, `stable`, `nightly`, and `ai-dev`. That fan-out workflow checks out configured eBioRing target repository branches and applies the current audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
 
 Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@ai-dev`, and runs the target project gate before protected-branch delivery.
 
-Downstream repositories do not have to prove that every long-lived delivery branch exists before a pull request can merge. They must enforce merge-flow boundaries instead: `ai-dev` may only merge into `ai-dev`, `nightly` may only merge into `nightly`, arbitrary feature branches may target `ai-dev` or `nightly`, and direct pull requests into `stable` are not allowed.
+Downstream repositories do not have to prove that every long-lived delivery branch exists before a pull request can merge. They must enforce version-promotion boundaries instead: arbitrary feature branches may target `ai-dev`, `ai-dev` may only merge into `nightly`, `nightly` may only merge into `stable`, and `stable` may only merge into `main`. Direct updates to downstream `main`, `stable`, and `nightly` must be blocked by GitHub Rulesets that require pull requests, because a post-update `push` workflow cannot reliably distinguish a valid pull request merge from a direct push.
 
 Audit execution must record both the audit framework commit SHA and the target repository commit SHA in the workflow log. CI must not rely on a `styio-audit` binary found on `PATH`, because that can be older than the repository policy.
 

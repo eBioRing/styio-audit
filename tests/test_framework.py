@@ -78,9 +78,12 @@ class FrameworkTests(unittest.TestCase):
                 "downstream_branch_flow_policy": {
                     "enabled": True,
                     "target_repository_owners": ["Unka-Malloc"],
-                    "allowed_base_branches": ["ai-dev", "nightly"],
-                    "same_name_branches": ["ai-dev", "nightly"],
-                    "disallowed_base_branches": ["stable"],
+                    "development_base_branches": ["ai-dev"],
+                    "required_pull_request_flows": [
+                        {"head": "ai-dev", "base": "nightly"},
+                        {"head": "nightly", "base": "stable"},
+                        {"head": "stable", "base": "main"},
+                    ],
                 },
             },
         )
@@ -569,7 +572,28 @@ class FrameworkTests(unittest.TestCase):
                 findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
 
-    def test_downstream_branch_flow_rejects_stable_target(self) -> None:
+    def test_downstream_branch_flow_allows_version_promotion_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            for head, base in (("ai-dev", "nightly"), ("nightly", "stable"), ("stable", "main")):
+                env = {
+                    "GITHUB_EVENT_NAME": "pull_request",
+                    "GITHUB_BASE_REF": base,
+                    "GITHUB_HEAD_REF": head,
+                }
+                with patch.dict(os.environ, env, clear=False):
+                    findings = self._run_demo_gate(framework_root, repo_root)
+                self.assertEqual([], [finding.message for finding in findings])
+
+    def test_downstream_branch_flow_rejects_feature_to_release_target(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -587,7 +611,7 @@ class FrameworkTests(unittest.TestCase):
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("direct pull requests into `stable` are not allowed" in message for message in messages))
+            self.assertTrue(any("`stable` only accepts pull requests from `nightly`" in message for message in messages))
 
     def test_downstream_branch_flow_rejects_cross_lane_merge(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -602,12 +626,32 @@ class FrameworkTests(unittest.TestCase):
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_BASE_REF": "stable",
                 "GITHUB_HEAD_REF": "ai-dev",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`ai-dev` can only merge into `ai-dev`, not `nightly`" in message for message in messages))
+            self.assertTrue(any("`ai-dev` can only merge into `nightly`, not `stable`" in message for message in messages))
+
+    def test_downstream_branch_flow_rejects_feature_to_main(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "main",
+                "GITHUB_HEAD_REF": "feature/demo",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("`main` only accepts pull requests from `stable`" in message for message in messages))
 
     def test_license_and_commercial_policies_accept_valid_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

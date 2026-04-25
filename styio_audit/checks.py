@@ -25,9 +25,12 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
 ]
 DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
 DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
-DEFAULT_DOWNSTREAM_ALLOWED_BASE_BRANCHES = ["ai-dev", "nightly"]
-DEFAULT_DOWNSTREAM_SAME_NAME_BRANCHES = ["ai-dev", "nightly"]
-DEFAULT_DOWNSTREAM_DISALLOWED_BASE_BRANCHES = ["stable"]
+DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev"]
+DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
+    {"head": "ai-dev", "base": "nightly"},
+    {"head": "nightly", "base": "stable"},
+    {"head": "stable", "base": "main"},
+]
 DEFAULT_LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"]
 DEFAULT_LICENSE_METADATA_FILES = ["pyproject.toml", "package.json", "pubspec.yaml"]
 DEFAULT_LICENSE_NOTICE_FILES = ["LICENSE-POLICY.md", "NOTICE", "NOTICE.md", "README.md", "docs/LICENSE-POLICY.md"]
@@ -402,11 +405,34 @@ def validate_downstream_branch_flow_policy(policy: Any, module_id: str) -> list[
     findings: list[AuditFinding] = []
     if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
         findings.append(finding("module downstream_branch_flow_policy.enabled must be a boolean", module_id))
-    for key in ("target_repository_owners", "allowed_base_branches", "same_name_branches", "disallowed_base_branches"):
+    for key in ("target_repository_owners", "development_base_branches"):
         values, key_findings = get_optional_string_list(policy, key, "module downstream_branch_flow_policy", module_id)
         findings.extend(key_findings)
         if values and len(values) != len(unique_strings(values)):
             findings.append(finding(f"module downstream_branch_flow_policy `{key}` entries must be unique", module_id))
+    raw_flows = policy.get("required_pull_request_flows", DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS)
+    if not isinstance(raw_flows, list) or not raw_flows:
+        findings.append(finding("module downstream_branch_flow_policy.required_pull_request_flows must be a non-empty list", module_id))
+    else:
+        seen_heads: set[str] = set()
+        for index, item in enumerate(raw_flows):
+            if not isinstance(item, dict):
+                findings.append(finding(f"module downstream_branch_flow_policy.required_pull_request_flows[{index}] must be an object", module_id))
+                continue
+            for key in ("head", "base"):
+                value = item.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    findings.append(
+                        finding(
+                            f"module downstream_branch_flow_policy.required_pull_request_flows[{index}].{key} must be a non-empty string",
+                            module_id,
+                        )
+                    )
+            head = item.get("head")
+            if isinstance(head, str) and head.strip():
+                if head in seen_heads:
+                    findings.append(finding(f"module downstream_branch_flow_policy required flow for `{head}` must be unique", module_id))
+                seen_heads.add(head)
     return findings
 
 
@@ -905,6 +931,21 @@ def policy_strings(policy: dict[str, Any], key: str, default: list[str]) -> list
     return [item for item in values if isinstance(item, str) and item.strip()]
 
 
+def policy_branch_flows(policy: dict[str, Any], key: str, default: list[dict[str, str]]) -> dict[str, str]:
+    values = policy.get(key, default)
+    if not isinstance(values, list):
+        values = default
+    result: dict[str, str] = {}
+    for item in values:
+        if not isinstance(item, dict):
+            continue
+        head = item.get("head")
+        base = item.get("base")
+        if isinstance(head, str) and head.strip() and isinstance(base, str) and base.strip():
+            result[head.strip()] = base.strip()
+    return result
+
+
 def policy_categories(policy: dict[str, Any], key: str, default: dict[str, list[str]]) -> dict[str, list[str]]:
     raw = policy.get(key, default)
     if not isinstance(raw, dict):
@@ -1309,13 +1350,15 @@ def check_downstream_branch_flow_policy(context: AuditContext) -> list[AuditFind
     event_name = os.environ.get("GITHUB_EVENT_NAME", "")
     base_ref = os.environ.get("GITHUB_BASE_REF", "")
     head_ref = os.environ.get("GITHUB_HEAD_REF", "")
-    ref_name = os.environ.get("GITHUB_REF_NAME", "")
-    allowed_base_branches = set(policy_strings(policy, "allowed_base_branches", DEFAULT_DOWNSTREAM_ALLOWED_BASE_BRANCHES))
-    same_name_branches = set(policy_strings(policy, "same_name_branches", DEFAULT_DOWNSTREAM_SAME_NAME_BRANCHES))
-    disallowed_base_branches = set(policy_strings(policy, "disallowed_base_branches", DEFAULT_DOWNSTREAM_DISALLOWED_BASE_BRANCHES))
+    development_base_branches = set(policy_strings(policy, "development_base_branches", DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES))
+    required_flows = policy_branch_flows(policy, "required_pull_request_flows", DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS)
+    required_heads_by_base: dict[str, list[str]] = {}
+    for head, base in required_flows.items():
+        required_heads_by_base.setdefault(base, []).append(head)
+    allowed_base_branches = development_base_branches | set(required_heads_by_base)
 
     findings: list[AuditFinding] = []
-    if event_name == "pull_request" or base_ref or head_ref:
+    if event_name in {"pull_request", "pull_request_target"} or base_ref or head_ref:
         if not base_ref or not head_ref:
             return [
                 finding(
@@ -1323,8 +1366,6 @@ def check_downstream_branch_flow_policy(context: AuditContext) -> list[AuditFind
                     default.module_id,
                 )
             ]
-        if base_ref in disallowed_base_branches:
-            findings.append(finding(f"downstream branch flow: direct pull requests into `{base_ref}` are not allowed", default.module_id))
         if allowed_base_branches and base_ref not in allowed_base_branches:
             findings.append(
                 finding(
@@ -1332,17 +1373,24 @@ def check_downstream_branch_flow_policy(context: AuditContext) -> list[AuditFind
                     default.module_id,
                 )
             )
-        if head_ref in same_name_branches and base_ref != head_ref:
+        expected_base = required_flows.get(head_ref)
+        if expected_base is not None and base_ref != expected_base:
             findings.append(
                 finding(
-                    f"downstream branch flow: `{head_ref}` can only merge into `{head_ref}`, not `{base_ref}`",
+                    f"downstream branch flow: `{head_ref}` can only merge into `{expected_base}`, not `{base_ref}`",
+                    default.module_id,
+                )
+            )
+        required_heads = sorted(required_heads_by_base.get(base_ref, []))
+        if expected_base is None and required_heads:
+            findings.append(
+                finding(
+                    f"downstream branch flow: `{base_ref}` only accepts pull requests from {', '.join(f'`{item}`' for item in required_heads)}",
                     default.module_id,
                 )
             )
         return findings
 
-    if event_name == "push" and ref_name in disallowed_base_branches:
-        return [finding(f"downstream branch flow: direct pushes to `{ref_name}` are not allowed", default.module_id)]
     return []
 
 

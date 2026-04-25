@@ -22,7 +22,7 @@
     "Password, token, API key, private-key, client-secret, and access-key scanner",
     "Manifest inventory schema gate",
     "eBioRing stable, nightly, and ai-dev branch existence gate",
-    "Unka-Malloc downstream pull request branch-flow gate",
+    "Unka-Malloc downstream version-promotion pull request branch-flow gate",
     "Framework test suite and command wrapper",
     "Ecosystem audit fan-out workflow for eBioRing styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
   ],
@@ -71,7 +71,7 @@
     {
       "id": "styio_license_policy",
       "owner": "Audit Policy / License Governance",
-      "description": "Owns Apache-2.0 policy evidence for Styio-family repositories, source-distribution notice obligations, no-commercial-authorization dependency boundaries, eBioRing stable/nightly/ai-dev branch evidence, Unka-Malloc downstream merge-flow boundaries, and sensitive security boundaries.",
+      "description": "Owns Apache-2.0 policy evidence for Styio-family repositories, source-distribution notice obligations, no-commercial-authorization dependency boundaries, eBioRing stable/nightly/ai-dev branch evidence, Unka-Malloc downstream version-promotion merge-flow boundaries, and sensitive security boundaries.",
       "scope_globs": ["modules/default/module.json", "README.md", "docs/specs/**", "LICENSE", "LICENSE-POLICY.md", "DEPENDENCY-USAGE.md", "styio_audit/checks.py", "tests/test_framework.py"],
       "copying_policy": "License policy text must reference canonical Apache-2.0 identifiers and avoid copying target repository source into policy findings.",
       "concurrency_policy": "License policy changes must be updated in the default module and documentation in the same delivery.",

@@ -35,7 +35,7 @@
     "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
     "eBioRing upstream repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
-    "Unka-Malloc downstream repositories must keep pull request merge flow aligned to ai-dev or nightly and must not merge directly into stable.",
+    "Unka-Malloc downstream repositories must follow the version promotion chain feature branch to ai-dev, ai-dev to nightly, nightly to stable, and stable to main.",
     "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history.",
     "Open-source repositories with server-deployment surfaces may publish standard auth, privacy, password-storage, and key-generation implementations only when secrets and production materials stay private and dangerous security patterns are blocked."
   ],
@@ -52,9 +52,12 @@
   "downstream_branch_flow_policy": {
     "enabled": true,
     "target_repository_owners": ["Unka-Malloc"],
-    "allowed_base_branches": ["ai-dev", "nightly"],
-    "same_name_branches": ["ai-dev", "nightly"],
-    "disallowed_base_branches": ["stable"]
+    "development_base_branches": ["ai-dev"],
+    "required_pull_request_flows": [
+      {"head": "ai-dev", "base": "nightly"},
+      {"head": "nightly", "base": "stable"},
+      {"head": "stable", "base": "main"}
+    ]
   },
   "license_policy": {
     "enabled": true,
