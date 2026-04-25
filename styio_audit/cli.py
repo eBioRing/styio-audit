@@ -51,6 +51,7 @@ def command_gate(args: argparse.Namespace) -> int:
         project=args.project,
         modules=modules,
         framework_only=args.framework_only,
+        skip_branch_governance=args.skip_branch_governance,
     )
     return emit(gate(context), fmt=args.format)
 
@@ -66,6 +67,7 @@ def command_report(args: argparse.Namespace) -> int:
             project=args.project,
             modules=[],
             framework_only=args.framework_only,
+            skip_branch_governance=args.skip_branch_governance,
         )
     else:
         modules = load_stack(root, args.project, repo_root)
@@ -75,6 +77,7 @@ def command_report(args: argparse.Namespace) -> int:
             project=args.project,
             modules=modules,
             framework_only=args.framework_only,
+            skip_branch_governance=args.skip_branch_governance,
         )
         findings = gate(context)
     report = build_audit_report(context, findings)
@@ -117,6 +120,11 @@ def build_parser() -> argparse.ArgumentParser:
     gate_cmd.add_argument("--repo", required=True, help="Target repository root to audit.")
     gate_cmd.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
     gate_cmd.add_argument("--framework-only", action="store_true", help="Skip active defect-record closure checks.")
+    gate_cmd.add_argument(
+        "--skip-branch-governance",
+        action="store_true",
+        help="Skip branch existence and branch-promotion governance checks while keeping the rest of the audit active.",
+    )
     gate_cmd.add_argument("--format", choices=("text", "json"), default="text")
     gate_cmd.set_defaults(func=command_gate)
 
@@ -125,6 +133,11 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
     report.add_argument("--output", help="Write the rendered report to a file. Relative paths are resolved under the target repository.")
     report.add_argument("--framework-only", action="store_true", help="Skip active defect-record closure checks.")
+    report.add_argument(
+        "--skip-branch-governance",
+        action="store_true",
+        help="Skip branch existence and branch-promotion governance checks while keeping the rest of the audit active.",
+    )
     report.add_argument("--format", choices=("text", "json"), default="json")
     report.set_defaults(func=command_report)
 

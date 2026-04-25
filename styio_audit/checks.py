@@ -1328,6 +1328,8 @@ def git_branch_exists(repo_root: Path, branch: str) -> tuple[bool, str | None]:
 
 
 def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
+    if context.skip_branch_governance:
+        return []
     if context.repo_root is None:
         return []
     default = default_module(context.modules)
@@ -1376,6 +1378,8 @@ def check_pull_request_flow_policy(
     default_development_base_branches: list[str],
     default_required_pull_request_flows: list[dict[str, str]],
 ) -> list[AuditFinding]:
+    if context.skip_branch_governance:
+        return []
     if context.repo_root is None:
         return []
     default = default_module(context.modules)
