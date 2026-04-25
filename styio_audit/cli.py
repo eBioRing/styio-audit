@@ -7,6 +7,11 @@ from pathlib import Path
 
 from .checks import gate, validate_modules
 from .loader import framework_root_from_here, load_all_modules, load_stack
+from .local_workflow import (
+    DEFAULT_FRAMEWORK_REF,
+    load_local_audit_workflow_policy_spec,
+    sync_local_audit_workflow,
+)
 from .models import AuditContext, AuditFinding
 from .report import build_audit_report, write_report
 from .secrets import render_history_summary, scan_history
@@ -99,6 +104,65 @@ def command_secret_history(args: argparse.Namespace) -> int:
     return 1 if findings else 0
 
 
+def command_sync_local_workflow(args: argparse.Namespace) -> int:
+    root = Path(args.framework_root).resolve()
+    repo_root = Path(args.repo).resolve()
+    if not repo_root.exists():
+        return emit([AuditFinding("error", f"target repo does not exist: {repo_root}")], fmt=args.format)
+    try:
+        result = sync_local_audit_workflow(
+            root,
+            repo_root,
+            args.project,
+            repo_name=args.repo_name,
+            framework_ref=args.framework_ref,
+            check=args.check,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        return emit([AuditFinding("error", str(exc))], fmt=args.format)
+    action = "verified" if args.check else ("updated" if result.changed else "already aligned")
+    print(
+        f"[styio-audit] {action}: {result.workflow_path} "
+        f"(project={args.project}, framework_ref={result.framework_ref})"
+    )
+    return 0
+
+
+def command_sync_upstream_local_workflows(args: argparse.Namespace) -> int:
+    root = Path(args.framework_root).resolve()
+    workspace_root = Path(args.workspace_root).resolve()
+    if not workspace_root.exists():
+        return emit([AuditFinding("error", f"workspace root does not exist: {workspace_root}")], fmt=args.format)
+    try:
+        spec = load_local_audit_workflow_policy_spec(root, args.framework_ref)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
+        return emit([AuditFinding("error", str(exc))], fmt=args.format)
+    projects = args.project or list(spec.target_project_ids)
+    findings: list[AuditFinding] = []
+    for project in projects:
+        repo_root = workspace_root / project
+        if not repo_root.exists():
+            findings.append(AuditFinding("error", f"target repo does not exist: {repo_root}"))
+            continue
+        try:
+            result = sync_local_audit_workflow(
+                root,
+                repo_root,
+                project,
+                framework_ref=args.framework_ref,
+                check=args.check,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            findings.append(AuditFinding("error", f"{project}: {exc}"))
+            continue
+        action = "verified" if args.check else ("updated" if result.changed else "already aligned")
+        print(
+            f"[styio-audit] {action}: {result.workflow_path} "
+            f"(project={project}, framework_ref={result.framework_ref})"
+        )
+    return emit(findings, fmt=args.format) if findings else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the modular Styio auditable-code framework.")
     parser.add_argument(
@@ -146,6 +210,37 @@ def build_parser() -> argparse.ArgumentParser:
     secret_history.add_argument("--project", help="Project id to include in the report label.")
     secret_history.add_argument("--format", choices=("text", "json"), default="text")
     secret_history.set_defaults(func=command_secret_history)
+
+    sync_local = sub.add_parser(
+        "sync-local-workflow",
+        help="Render or verify the authoritative repository-local styio-audit workflow for one target repository.",
+    )
+    sync_local.add_argument("--repo", required=True, help="Target repository root that owns `.github/workflows/styio-audit.yml`.")
+    sync_local.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    sync_local.add_argument("--repo-name", help="Override the repository name placeholder; defaults to the target directory name.")
+    sync_local.add_argument(
+        "--framework-ref",
+        default=DEFAULT_FRAMEWORK_REF,
+        help="Git ref inside styio-audit that owns the authoritative template. Use HEAD for the current worktree.",
+    )
+    sync_local.add_argument("--check", action="store_true", help="Fail if the target workflow drifts instead of rewriting it.")
+    sync_local.add_argument("--format", choices=("text", "json"), default="text")
+    sync_local.set_defaults(func=command_sync_local_workflow)
+
+    sync_upstream = sub.add_parser(
+        "sync-upstream-local-workflows",
+        help="Render or verify authoritative repository-local styio-audit workflows for all managed upstream repositories under one workspace root.",
+    )
+    sync_upstream.add_argument("--workspace-root", required=True, help="Workspace root that contains managed upstream repositories, such as /home/unka/eBioRing.")
+    sync_upstream.add_argument(
+        "--framework-ref",
+        default=DEFAULT_FRAMEWORK_REF,
+        help="Git ref inside styio-audit that owns the authoritative template. Use HEAD for the current worktree.",
+    )
+    sync_upstream.add_argument("--project", action="append", help="Optional project id to sync; repeat to limit the target set.")
+    sync_upstream.add_argument("--check", action="store_true", help="Fail if any target workflow drifts instead of rewriting files.")
+    sync_upstream.add_argument("--format", choices=("text", "json"), default="text")
+    sync_upstream.set_defaults(func=command_sync_upstream_local_workflows)
 
     return parser
 
