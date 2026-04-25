@@ -35,6 +35,7 @@
     "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
     "eBioRing upstream repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
+    "eBioRing upstream repositories must carry a repository-local styio-audit workflow that exactly matches the authoritative template shipped by styio-audit.",
     "eBioRing upstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote through nightly before stable, require nightly to promote to stable, and require stable to promote to main.",
     "Unka-Malloc downstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote to nightly, require nightly to promote to stable, and require stable to promote to main.",
     "AI agent temporary branches should target ai-dev first even when repository governance cannot hard-enforce branch naming.",
@@ -50,6 +51,14 @@
     "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
     "target_repository_owners": ["eBioRing"],
     "required_branches": ["stable", "nightly", "ai-dev"]
+  },
+  "local_audit_workflow_policy": {
+    "enabled": true,
+    "name": "Authoritative styio-audit local workflow policy",
+    "target_project_ids": ["styio", "styio-spio", "styio-view", "styio-platform", "styio-community"],
+    "target_repository_owners": ["eBioRing"],
+    "workflow_path": ".github/workflows/styio-audit.yml",
+    "template_path": "templates/workflows/styio-audit-local.yml"
   },
   "upstream_branch_flow_policy": {
     "enabled": true,
