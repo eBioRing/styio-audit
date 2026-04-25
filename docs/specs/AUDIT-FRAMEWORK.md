@@ -18,38 +18,26 @@ The audited repository does not provide an audit interface. `styio-audit` reads 
 
 ## Execution Contract
 
-Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for managed delivery branches, check out `eBioRing/styio-audit` from `stable`, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository. eBioRing upstream checks must also fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence before running the gate.
+Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for managed delivery branches, check out `eBioRing/styio-audit` from `stable`, and execute that checkout's `bin/styio-audit` entrypoint directly against the target repository. eBioRing upstream checks must also fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence before running the gate. The authoritative repository-local workflow template is stored in [../templates/workflows/styio-audit-local.yml](../../templates/workflows/styio-audit-local.yml), and upstream repository-local workflows must match that template after rendering repository/project placeholders.
 
 `styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/audit-self-essential.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for all branches. It validates module schema, unit tests, and the `styio-audit` self gate with branch-governance checks disabled, so temporary branches still receive documentation, schema, and security coverage. `.github/workflows/audit-self-complete.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for `stable` and `main`. It validates the same framework plus branch-governance checks. `audit-self-complete` is the only self-promotion status check that should be required for `styio-audit` promotion into `stable` and `main`.
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
-Upstream eBioRing repositories use temporary branches and `ai-dev` as writable integration lanes. `nightly`, `stable`, and `main` are pull-request-only promotion gates. Temporary branches are the scratch space where new commits are created, pushed, and audited first. Promotion then lifts the same audited commit SHA through the release chain: temporary branch -> `ai-dev` -> `nightly` -> `stable` -> `main`. Temporary branches must not target `stable` or `main`, and `ai-dev` must not bypass `nightly` when promoting toward `stable`.
+Detailed branch roles, promotion paths, downstream submission rules, and live GitHub Ruleset expectations are maintained in [BRANCH-GOVERNANCE.md](BRANCH-GOVERNANCE.md). This framework document references that policy and keeps only the framework-facing constraints:
 
-Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@stable`, and runs the target project gate before managed delivery.
-
-Downstream repositories do not have to prove that every long-lived delivery branch exists before a pull request can merge. They enforce version-promotion boundaries instead: temporary branches may target `ai-dev` or `nightly`, `ai-dev` may only merge into `nightly`, `nightly` may only merge into `stable`, and `stable` may only merge into `main`. Temporary branches must not target `stable` or `main`.
-
-AI agent temporary branches are expected to merge into `ai-dev` first. This is a governance requirement that must be documented in repository docs and team runbooks even when branch naming cannot be hard-enforced in the audit framework.
+1. Every upstream eBioRing repository in scope must expose `stable`, `nightly`, and `ai-dev` branch evidence.
+2. `styio-audit` must run `audit-self-essential` on every branch so writable branches always produce current audit evidence.
+3. `styio-audit` must require `audit-self-complete` for promotion into `stable` and `main`.
+4. `ecosystem-audit` must remain visible but must not block `styio-audit` self-promotion.
+5. Downstream repositories must run repository-local `styio-audit` workflows for their own pull-request and protected-branch delivery.
+6. Upstream eBioRing repositories must keep `.github/workflows/styio-audit.yml` identical to the authoritative template rendered from `templates/workflows/styio-audit-local.yml`, and `styio-audit gate` must fail if that file drifts.
 
 Audit execution must record both the audit framework commit SHA and the target repository commit SHA in the workflow log. CI must not rely on a `styio-audit` binary found on `PATH`, because that can be older than the repository policy.
 
 ## GitHub Ruleset Governance
 
-Styio delivery gates are governed through GitHub Rulesets. Maintainers must not treat legacy classic branch protection required-status-check configuration as the source of truth for audit enforcement.
-
-Required governance state:
-
-1. `nightly`, `stable`, and `main` must be covered by active GitHub Rulesets that require pull requests and strict required status checks.
-2. `nightly` must require `audit-self-essential`, and promotion into `nightly` must use a commit SHA that has already completed `audit-self-essential` on a temporary branch, `ai-dev`, or pull request in the same repository.
-3. `ai-dev` and temporary branches must remain writable scratch branches. They may be created, updated, and deleted freely, but `audit-self-essential` must still run on every push so the produced commit SHA has current documentation, schema, and security evidence before promotion.
-4. `styio-audit` must run `audit-self-essential` on every branch so temporary branches and `ai-dev` still receive documentation, schema, and security checks.
-5. Target repositories must require the repository-local `audit` status check for promotion into `stable` and `main`.
-6. `styio-audit` must require the `audit-self-complete` status check for promotion into `stable` and `main`.
-7. `ecosystem-audit` must remain visible as an active patrol but must not be a required status check for `styio-audit` self-promotion.
-8. Ruleset bypass actors must be explicitly reviewed and must not include broad maintainer bypass for normal delivery.
-
-Audit tooling and manual reviews must inspect effective rules, for example `GET /repos/{owner}/{repo}/rules/branches/{branch}`. The legacy classic endpoint `GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks` is informational only for Styio governance and can return 404 when Rulesets are correctly enforcing the gate.
+Styio delivery gates are governed through GitHub Rulesets. Maintainers must not treat legacy classic branch protection required-status-check configuration as the source of truth for audit enforcement. The full protected-branch policy lives in [BRANCH-GOVERNANCE.md](BRANCH-GOVERNANCE.md). Audit tooling and manual reviews must inspect effective rules, for example `GET /repos/{owner}/{repo}/rules/branches/{branch}`. The legacy classic endpoint `GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks` is informational only for Styio governance and can return 404 when Rulesets are correctly enforcing the gate.
 
 ## Module Contract
 

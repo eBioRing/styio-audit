@@ -153,6 +153,62 @@ class FrameworkTests(unittest.TestCase):
             },
         )
 
+    def _write_local_audit_workflow_template(self, framework_root: Path) -> None:
+        self._write_file(
+            framework_root,
+            "templates/workflows/styio-audit-local.yml",
+            "name: styio-audit\n\n"
+            "on:\n"
+            "  pull_request:\n"
+            "  push:\n"
+            "  merge_group:\n"
+            "  workflow_dispatch:\n\n"
+            "permissions:\n"
+            "  contents: read\n\n"
+            "jobs:\n"
+            "  audit:\n"
+            "    runs-on: ubuntu-24.04\n"
+            "    steps:\n"
+            "      - name: Checkout {{REPO_NAME}}\n"
+            "        uses: actions/checkout@v5\n"
+            "        with:\n"
+            "          fetch-depth: 0\n"
+            "          path: {{REPO_NAME}}\n"
+            "      - name: Checkout released styio-audit policy\n"
+            "        uses: actions/checkout@v5\n"
+            "        with:\n"
+            "          repository: eBioRing/styio-audit\n"
+            "          ref: stable\n"
+            "          path: styio-audit\n"
+            "      - name: Run released styio-audit gate\n"
+            "        working-directory: {{REPO_NAME}}\n"
+            "        run: python3 ../styio-audit/bin/styio-audit gate --repo . --project {{PROJECT_ID}}\n",
+        )
+
+    def _write_local_audit_workflow_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-04-26",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+                "local_audit_workflow_policy": {
+                    "enabled": True,
+                    "name": "Authoritative local workflow policy.",
+                    "target_project_ids": ["demo"],
+                    "target_repository_owners": ["eBioRing"],
+                    "workflow_path": ".github/workflows/styio-audit.yml",
+                    "template_path": "templates/workflows/styio-audit-local.yml",
+                },
+            },
+        )
+
     def _write_policy_default_module(self, framework_root: Path) -> None:
         self._write_json(
             framework_root,
@@ -592,6 +648,89 @@ class FrameworkTests(unittest.TestCase):
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
+
+    def test_local_audit_workflow_policy_accepts_authoritative_template(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_local_audit_workflow_default_module(framework_root)
+            self._write_local_audit_workflow_template(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._write_file(
+                repo_root,
+                ".github/workflows/styio-audit.yml",
+                "name: styio-audit\n\n"
+                "on:\n"
+                "  pull_request:\n"
+                "  push:\n"
+                "  merge_group:\n"
+                "  workflow_dispatch:\n\n"
+                "permissions:\n"
+                "  contents: read\n\n"
+                "jobs:\n"
+                "  audit:\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - name: Checkout demo\n"
+                "        uses: actions/checkout@v5\n"
+                "        with:\n"
+                "          fetch-depth: 0\n"
+                "          path: demo\n"
+                "      - name: Checkout released styio-audit policy\n"
+                "        uses: actions/checkout@v5\n"
+                "        with:\n"
+                "          repository: eBioRing/styio-audit\n"
+                "          ref: stable\n"
+                "          path: styio-audit\n"
+                "      - name: Run released styio-audit gate\n"
+                "        working-directory: demo\n"
+                "        run: python3 ../styio-audit/bin/styio-audit gate --repo . --project demo\n",
+            )
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_local_audit_workflow_policy_rejects_missing_workflow(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_local_audit_workflow_default_module(framework_root)
+            self._write_local_audit_workflow_template(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("missing `.github/workflows/styio-audit.yml`" in message for message in messages))
+
+    def test_local_audit_workflow_policy_rejects_template_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_local_audit_workflow_default_module(framework_root)
+            self._write_local_audit_workflow_template(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._write_file(
+                repo_root,
+                ".github/workflows/styio-audit.yml",
+                "name: styio-audit\n\n"
+                "on:\n"
+                "  push:\n"
+                "  workflow_dispatch:\n",
+            )
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("does not match authoritative template" in message for message in messages))
 
     def test_downstream_branch_flow_allows_feature_to_ai_dev(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -24,6 +24,10 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "dependency_manifests",
 ]
 DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "styio-spio", "styio-view", "styio-platform", "styio-community"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["eBioRing"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH = ".github/workflows/styio-audit.yml"
+DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH = "templates/workflows/styio-audit-local.yml"
 DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["eBioRing"]
 DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
 DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
@@ -405,6 +409,23 @@ def validate_branch_policy(policy: Any, module_id: str) -> list[AuditFinding]:
     return findings
 
 
+def validate_local_audit_workflow_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module local_audit_workflow_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module local_audit_workflow_policy.enabled must be a boolean", module_id))
+    for key in ("name", "workflow_path", "template_path"):
+        findings.extend(require_string(policy, key, "module local_audit_workflow_policy", module_id))
+    for key in ("target_project_ids", "target_repository_owners"):
+        values, key_findings = get_optional_string_list(policy, key, "module local_audit_workflow_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module local_audit_workflow_policy `{key}` entries must be unique", module_id))
+    return findings
+
+
 def validate_pull_request_flow_policy(
     policy: Any,
     module_id: str,
@@ -581,6 +602,8 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_manifest_inventory_policy(data["manifest_inventory_policy"], module.module_id))
         if "branch_policy" in data:
             findings.extend(validate_branch_policy(data["branch_policy"], module.module_id))
+        if "local_audit_workflow_policy" in data:
+            findings.extend(validate_local_audit_workflow_policy(data["local_audit_workflow_policy"], module.module_id))
         if "upstream_branch_flow_policy" in data:
             findings.extend(validate_upstream_branch_flow_policy(data["upstream_branch_flow_policy"], module.module_id))
         if "downstream_branch_flow_policy" in data:
@@ -1327,6 +1350,82 @@ def git_branch_exists(repo_root: Path, branch: str) -> tuple[bool, str | None]:
     return False, None
 
 
+def normalized_file_text(text: str) -> str:
+    normalized = text.replace("\r\n", "\n")
+    if not normalized.endswith("\n"):
+        normalized += "\n"
+    return normalized
+
+
+def render_local_audit_workflow_template(template_text: str, repo_name: str, project: str) -> str:
+    rendered = template_text.replace("{{REPO_NAME}}", repo_name)
+    rendered = rendered.replace("{{PROJECT_ID}}", project)
+    return normalized_file_text(rendered)
+
+
+def check_local_audit_workflow_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("local_audit_workflow_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"local audit workflow policy: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
+
+    workflow_path = str(policy.get("workflow_path", DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH)).strip()
+    template_path_value = str(policy.get("template_path", DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH)).strip()
+    if not workflow_path or not template_path_value:
+        return [finding("local audit workflow policy: missing workflow_path or template_path", default.module_id)]
+
+    template_path = context.framework_root / template_path_value
+    if not template_path.is_file():
+        return [
+            finding(
+                f"local audit workflow policy: authoritative template `{template_path_value}` is missing from framework root",
+                default.module_id,
+            )
+        ]
+
+    if workflow_path not in files or not (context.repo_root / workflow_path).is_file():
+        return [
+            finding(
+                f"local audit workflow policy: missing `{workflow_path}`; it must match authoritative template `{template_path_value}`",
+                default.module_id,
+            )
+        ]
+
+    project = context.project or context.repo_root.name
+    expected = render_local_audit_workflow_template(
+        template_path.read_text(encoding="utf-8", errors="replace"),
+        context.repo_root.name,
+        project,
+    )
+    actual = normalized_file_text((context.repo_root / workflow_path).read_text(encoding="utf-8", errors="replace"))
+    if actual != expected:
+        return [
+            finding(
+                f"local audit workflow policy: `{workflow_path}` does not match authoritative template `{template_path_value}` "
+                f"for repository `{context.repo_root.name}` project `{project}`",
+                default.module_id,
+            )
+        ]
+    return []
+
+
 def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -1634,6 +1733,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
     findings = validate_modules(context.modules)
     if context.repo_root is not None:
         files = repo_files(context.repo_root)
+        findings.extend(check_local_audit_workflow_policy(context, files))
         for module in context.modules:
             if module.module_type != "default":
                 findings.extend(validate_resource_classes(module, files))
