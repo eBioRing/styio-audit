@@ -24,7 +24,7 @@ Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions w
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
-Upstream eBioRing repositories use `ai-dev` and `nightly` as direct-push integration lanes. Temporary branches may target either `ai-dev` or `nightly`. Promotion pull requests must still preserve the managed release chain: `ai-dev` may only merge into `nightly`, `nightly` may only merge into `stable`, and `stable` may only merge into `main`. Temporary branches must not target `stable` or `main`.
+Upstream eBioRing repositories use `ai-dev` and `nightly` as managed integration lanes. Temporary branches are the scratch space where new commits are created, pushed, and audited first. Promotion then lifts the same audited commit SHA through the release chain: temporary branch -> `ai-dev` -> `nightly` -> `stable` -> `main`. Temporary branches must not target `stable` or `main`, and `ai-dev` must not bypass `nightly` when promoting toward `stable`.
 
 Downstream forks are outside the upstream eBioRing fan-out boundary. Each downstream repository must own a repository-local `styio-audit` workflow that runs on `pull_request`, `push`, and `workflow_dispatch`, checks out `eBioRing/styio-audit@stable`, and runs the target project gate before managed delivery.
 
@@ -41,12 +41,13 @@ Styio delivery gates are governed through GitHub Rulesets. Maintainers must not 
 Required governance state:
 
 1. `stable` and `main` must be covered by active GitHub Rulesets that require pull requests and strict required status checks.
-2. `ai-dev`, `nightly`, and temporary branches may be configured as direct-push integration lanes. When direct push is intended, those branches must not require pre-push promotion checks, but they must still run audit workflows on `push`.
-3. `styio-audit` must run `audit-self-essential` on every branch so temporary branches still receive documentation, schema, and security checks.
-4. Target repositories must require the repository-local `audit` status check for promotion into `stable` and `main`.
-5. `styio-audit` must require the `audit-self-complete` status check for promotion into `stable` and `main`.
-6. `ecosystem-audit` must remain visible as an active patrol but must not be a required status check for `styio-audit` self-promotion.
-7. Ruleset bypass actors must be explicitly reviewed and must not include broad maintainer bypass for normal delivery.
+2. `ai-dev` and `nightly` may require `audit-self-essential`, but promotion into those branches must use a commit SHA that has already completed `audit-self-essential` on a temporary branch or pull request in the same repository.
+3. Temporary branches must remain writable scratch branches. They may be created, updated, and deleted freely, but `audit-self-essential` must still run on every push so the produced commit SHA has current documentation, schema, and security evidence before promotion.
+4. `styio-audit` must run `audit-self-essential` on every branch so temporary branches still receive documentation, schema, and security checks.
+5. Target repositories must require the repository-local `audit` status check for promotion into `stable` and `main`.
+6. `styio-audit` must require the `audit-self-complete` status check for promotion into `stable` and `main`.
+7. `ecosystem-audit` must remain visible as an active patrol but must not be a required status check for `styio-audit` self-promotion.
+8. Ruleset bypass actors must be explicitly reviewed and must not include broad maintainer bypass for normal delivery.
 
 Audit tooling and manual reviews must inspect effective rules, for example `GET /repos/{owner}/{repo}/rules/branches/{branch}`. The legacy classic endpoint `GET /repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks` is informational only for Styio governance and can return 404 when Rulesets are correctly enforcing the gate.
 
