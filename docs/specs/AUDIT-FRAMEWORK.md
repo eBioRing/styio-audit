@@ -20,6 +20,15 @@ The audited repository does not provide an audit interface. `styio-audit` reads 
 
 Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for managed delivery branches, check out `eBioRing/styio-audit` from `stable`, execute that checkout's `bin/styio-audit` entrypoint directly against the target repository, and report the repository-local check name `styio-audit`. eBioRing upstream checks must also fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence before running the gate. The authoritative repository-local workflow template is stored in [../templates/workflows/styio-audit-local.yml](../../templates/workflows/styio-audit-local.yml), and upstream repository-local workflows must match that template after rendering repository/project placeholders.
 
+For maintenance automation, `styio-audit` provides repository-local workflow sync commands:
+
+- `python3 -m styio_audit.cli sync-local-workflow --repo <repo-root> --project <project-id> --framework-ref origin/stable`
+- `python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root <workspace-root> --framework-ref origin/stable`
+- `python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root <workspace-root> --framework-ref origin/stable --check`
+- `./scripts/sync-upstream-local-workflows.sh --workspace-root <workspace-root> --framework-ref origin/stable`
+
+These commands render the same authoritative template that protected-branch delivery consumes from `styio-audit@stable`. `--check` mode is intended for automation and fails on workflow drift without rewriting files.
+
 `styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/audit-self-essential.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for all branches. It validates module schema, unit tests, and the `styio-audit` self gate with branch-governance checks disabled, so temporary branches still receive documentation, schema, and security coverage. `.github/workflows/audit-self-complete.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for `stable` and `main`. It validates the same framework plus branch-governance checks. `audit-self-complete` is the only self-promotion status check that should be required for `styio-audit` promotion into `stable` and `main`.
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
