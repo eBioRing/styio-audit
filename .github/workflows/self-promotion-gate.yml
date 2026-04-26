@@ -1,4 +1,4 @@
-name: audit-self
+name: self-promotion-gate
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  audit-self:
+  self-promotion-gate:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: ${{ env.STYIO_PYTHON_VERSION }}
 
-      - name: Run styio-audit self gate
+      - name: Run styio-audit promotion gate
         run: |
           git rev-parse HEAD
           for branch in stable nightly ai-dev; do

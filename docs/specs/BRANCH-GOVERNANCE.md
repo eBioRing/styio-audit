@@ -18,11 +18,11 @@ This policy applies to:
 
 | Branch | Role | Writable | Entry mode | Primary gate |
 | --- | --- | --- | --- | --- |
-| `temporary branch` | Scratch branch for new commits | Yes | Direct push | `audit-self-essential` on push |
-| `ai-dev` | Writable integration branch | Yes | Direct push | `audit-self-essential` on push |
-| `nightly` | Promotion gate | No | Pull request only | `audit-self` |
-| `stable` | Release gate | No | Pull request only | `audit-self` |
-| `main` | Final delivery gate | No | Pull request only | `audit-self` |
+| `temporary branch` | Scratch branch for new commits | Yes | Direct push | `self-audit-baseline` on push |
+| `ai-dev` | Writable integration branch | Yes | Direct push | `self-audit-baseline` on push |
+| `nightly` | Promotion gate | No | Pull request only | `self-promotion-gate` |
+| `stable` | Release gate | No | Pull request only | `self-promotion-gate` |
+| `main` | Final delivery gate | No | Pull request only | `self-promotion-gate` |
 
 `nightly`, `stable`, and `main` may also require review approval according to the active GitHub Ruleset. Direct updates to those branches are not part of the supported promotion flow.
 
@@ -56,9 +56,9 @@ GitHub Rulesets are the source of truth for protected-branch enforcement. Legacy
 Required policy shape:
 
 1. `nightly`, `stable`, and `main` must require pull requests before merging.
-2. `nightly`, `stable`, and `main` must require `audit-self` for `styio-audit`, and the repository-local `styio-audit` check for target repositories.
+2. `nightly`, `stable`, and `main` must require `self-promotion-gate` for `styio-audit`, and the repository-local `styio-audit` check for target repositories.
 3. `temporary branch` and `ai-dev` must remain writable so new SHAs can be created and audited before promotion.
-4. `audit-self-essential` must still run on every branch push so writable branches always produce current audit evidence.
+4. `self-audit-baseline` must still run on every branch push so writable branches always produce current audit evidence.
 5. `ecosystem-audit` must remain informational for `styio-audit` self-promotion and must not be configured as a required status check.
 6. Ruleset bypass actors must be explicitly reviewed and must not grant broad normal-delivery bypass.
 7. Upstream repositories must keep `.github/workflows/styio-audit.yml` aligned with the authoritative template in `styio-audit/templates/workflows/styio-audit-local.yml`, because protected-branch promotion depends on that local workflow actually reporting the required check.
