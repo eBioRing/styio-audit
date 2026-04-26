@@ -154,7 +154,7 @@
     "license_label": "Apache-2.0",
     "spdx_identifiers": ["Apache-2.0"],
     "license_text_markers": ["Apache License", "Version 2.0"],
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
     "license_files": ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"],
     "metadata_files": ["pyproject.toml", "package.json", "pubspec.yaml"],
     "notice_files": ["LICENSE-POLICY.md", "NOTICE", "NOTICE.md", "README.md", "docs/LICENSE-POLICY.md"],
@@ -164,7 +164,7 @@
   "commercial_risk_policy": {
     "enabled": true,
     "name": "Styio no-commercial-authorization dependency policy",
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
     "manifest_globs": ["package.json", "**/package.json", "pyproject.toml", "**/pyproject.toml", "pubspec.yaml", "**/pubspec.yaml", "CMakeLists.txt", "**/CMakeLists.txt", "requirements*.txt", "**/requirements*.txt", "Cargo.toml", "**/Cargo.toml", "go.mod", "**/go.mod", "Package.swift", "**/Package.swift", "vcpkg.json", "**/vcpkg.json"],
     "boundary_files": ["DEPENDENCY-USAGE.md", "THIRD-PARTY-NOTICES.md", "docs/DEPENDENCY-USAGE.md", "docs/dependencies.md", "docs/third-party.md"],
     "required_boundary_markers": ["dependency|依赖", "commercial|商业", "authorization|授权", "usage boundary|使用边界|边界"],
@@ -173,7 +173,7 @@
   },
   "secret_scan_policy": {
     "enabled": true,
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
     "secret_classes": ["password", "token", "api_key", "private_key", "client_secret", "access_key"],
     "ignored_path_parts": [".git", ".dart_tool", ".pytest_cache", ".venv", "__pycache__", "build", "dist", "node_modules", "venv"],
     "max_file_bytes": 1048576,
@@ -183,7 +183,7 @@
   "server_sensitive_boundary_policy": {
     "enabled": true,
     "name": "Styio server-deployment sensitive security boundary policy",
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
+    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
     "server_project_markers": ["server deployment|server-deployment|server-side|backend|服务端", "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control"],
     "code_globs": ["*.py", "*.sh", "*.bash", "*.yml", "*.yaml", "CMakeLists.txt", "**/*.c", "**/*.cc", "**/*.cpp", "**/*.cxx", "**/*.h", "**/*.hh", "**/*.hpp", "**/*.py", "**/*.sh", "**/*.bash", "**/*.dart", "**/*.js", "**/*.ts", "**/*.go", "**/*.rs", "**/*.java", "**/*.kt", "**/*.swift", "**/*.yml", "**/*.yaml", "**/CMakeLists.txt"],
     "ignored_path_parts": [".git", ".dart_tool", ".pytest_cache", ".venv", "__pycache__", "build", "build-codex", "dist", "node_modules", "venv"],

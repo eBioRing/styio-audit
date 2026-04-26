@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "module_id": "for-styio-community",
+  "module_type": "project",
+  "description": "Project module for styio-community decision coordination, local server-side workflow APIs, forum records, web UI, and delivery governance.",
+  "last_updated": "2026-04-26",
+  "project_ids": ["styio-community", "community"],
+  "technology_stack": [
+    "Python 3 local HTTP server and community coordination library",
+    "Python unittest repository-local test suite",
+    "JSON file-backed decision record and forum persistence",
+    "Static HTML, CSS, and JavaScript web UI",
+    "Node.js Stitch design helper scripts under tools/stitch",
+    "GitHub Actions workflow automation for ci-gate and styio-audit"
+  ],
+  "internal_components": [
+    "Community decision state machine for detected, approved, dispatched, completed, blocked, and rejected records",
+    "JsonRecordStore and ForumStore local persistence adapters",
+    "Syntax-change and IDE-capability-gap payload contracts",
+    "Repository request adapters for styio and styio-view handoff records",
+    "Local HTTP API and static web interface",
+    "Repository-local CI gate and external styio-audit workflow"
+  ],
+  "open_source_components": [
+    "Python standard library http.server, json, pathlib, tempfile, threading, unittest, and urllib",
+    "Browser standard APIs for fetch, DOM rendering, and static assets",
+    "Node.js npm tooling for design helpers",
+    "@google/stitch-sdk",
+    "GitHub Actions"
+  ],
+  "dependency_manifests": [
+    "tools/stitch/package.json",
+    "tools/stitch/package-lock.json",
+    ".github/workflows/ci-gate.yml",
+    ".github/workflows/styio-audit.yml"
+  ],
+  "security_boundaries": [
+    "Authentication, authorization, and identity implementation is not currently exposed by the local server; any future auth code may be public only when it uses documented standard protocol behavior.",
+    "Privacy and PII or personal data payloads must not be committed in decision records, forum records, examples, fixtures, or logs.",
+    "Password storage is not a styio-community responsibility; production passwords must not be stored in JSON records, forum records, code, examples, or tests.",
+    "Secret, token, key, and credential material, including Stitch API keys and deployment credentials, must stay private.",
+    "Production private material is offline or not committed to GitHub; generated .env files, private keys, tokens, and credential bundles must stay outside the repository.",
+    "Permission matrix and route authorization behavior for decision, forum, approval, rejection, dispatch, reaction, and demo routes must be explicit before hosted service deployment.",
+    "Deployment security config must cover TLS, CORS, CSRF, cookie, debug exposure, and hosted server deployment boundaries before cloud publication.",
+    "SBOM, CVE, and dependency vulnerability scan evidence is required for @google/stitch-sdk and any future npm or Python dependency before release gates pass.",
+    "DAST black-box penetration security regression must cover hosted or externally reachable community server deployment surfaces before public deployment.",
+    "Runtime secret manager or KMS key rotation owns production tokens, Stitch keys, deployment credentials, and hosted server secrets.",
+    "Rate limit, anti replay nonce, replay protection, and idempotency boundaries must be documented for externally reachable POST routes before hosted deployment.",
+    "Log redaction and audit log rules must prevent request tokens, PII, API keys, credentials, and decision-private data from being written to logs.",
+    "SSRF egress allowlist, URL allowlist, and outbound request boundaries must be documented before adapters perform network calls.",
+    "Command execution must use subprocess allowlist boundaries and reject shell injection surfaces in scripts and future server helpers."
+  ],
+  "resource_classes": [
+    {
+      "id": "community_decision_records",
+      "owner": "Community Workflow / Decision Records",
+      "description": "Owns coordination record contracts, lifecycle transitions, local JSON storage, and adapter-facing handoff requests.",
+      "scope_globs": ["community/state_machine.py", "community/storage.py", "community/contracts.py", "community/adapters.py", "docs/workflows/DECISION-FRAMEWORK.md", "tests/test_state_machine.py", "tests/test_storage.py", "tests/test_adapters.py"],
+      "copying_policy": "Decision records must copy only the minimal coordination payload needed for downstream action; repository source and private issue data must stay outside stored records.",
+      "concurrency_policy": "Record persistence uses atomic file replacement; future multi-user hosted service deployment must add explicit write serialization.",
+      "nullability_policy": "Missing kind, payload, actor, decision, dispatch target, and adapter outputs must fail closed with structured validation errors.",
+      "cleanup_policy": "Demo records, rejected records, blocked records, and generated local state must stay out of tracked source unless intentionally documented.",
+      "state_machine": {
+        "source": "community/state_machine.py, JsonRecordStore, adapters, workflow docs, and unit tests.",
+        "states": ["detected", "awaiting_decision", "approved", "dispatched", "completed", "blocked", "rejected"],
+        "transitions": [
+          {"from": "detected", "to": "awaiting_decision", "on": "record is opened for human decision"},
+          {"from": "awaiting_decision", "to": "approved", "on": "approval opinion is accepted"},
+          {"from": "awaiting_decision", "to": "rejected", "on": "rejection opinion is accepted"},
+          {"from": "approved", "to": "dispatched", "on": "repository adapter request is created"},
+          {"from": "dispatched", "to": "completed", "on": "downstream closure is recorded"},
+          {"from": "dispatched", "to": "blocked", "on": "downstream route cannot proceed"}
+        ],
+        "invalid_operations": ["dispatching unapproved records", "completing records before dispatch", "accepting malformed payload contracts", "tracking local state files"]
+      },
+      "required_tests": ["python3 -m unittest discover -s tests -v"],
+      "required_gates": ["ci-gate", "styio-audit"],
+      "audit_risks": ["state-machine bypass", "adapter contract drift", "unbounded payload copying", "local state leakage"]
+    },
+    {
+      "id": "community_forum_and_web_surface",
+      "owner": "Community UI / Forum Surface",
+      "description": "Owns local forum records, comments, reactions, HTTP routes, and static web UI used to review community decisions.",
+      "scope_globs": ["community/forum.py", "community/server.py", "web/**", "tests/test_forum.py", "scripts/run-dev.sh"],
+      "copying_policy": "Forum posts, comments, and reactions must remain compact community metadata and must not copy private source, secrets, or credential material.",
+      "concurrency_policy": "Forum storage uses single-file atomic writes; hosted service deployment requires explicit route authorization and serialized write behavior.",
+      "nullability_policy": "Missing post, category, author, comment, reaction, route, and request-body values must produce explicit client errors.",
+      "cleanup_policy": "Local forum data and generated community state must remain ignored unless promoted as intentional fixtures.",
+      "state_machine": {
+        "source": "ForumStore, community/server.py routes, web UI handlers, and forum tests.",
+        "states": ["drafted", "posted", "commented", "reacted", "served", "failed"],
+        "transitions": [
+          {"from": "drafted", "to": "posted", "on": "validated post is persisted"},
+          {"from": "posted", "to": "commented", "on": "validated comment is appended"},
+          {"from": "posted", "to": "reacted", "on": "validated reaction is recorded"},
+          {"from": "commented", "to": "served", "on": "route returns forum projection"},
+          {"from": "reacted", "to": "served", "on": "route returns reaction projection"},
+          {"from": "drafted", "to": "failed", "on": "validation or storage write fails"}
+        ],
+        "invalid_operations": ["posting empty content", "reacting with invalid emoji", "serving mutable internal objects", "publishing hosted routes without security boundaries"]
+      },
+      "required_tests": ["python3 -m unittest discover -s tests -v"],
+      "required_gates": ["ci-gate", "styio-audit"],
+      "audit_risks": ["route validation drift", "forum data leakage", "untracked generated state", "hosted deployment without auth/privacy boundaries"]
+    },
+    {
+      "id": "community_delivery_and_dependency_governance",
+      "owner": "Delivery / Audit / Dependency Governance",
+      "description": "Owns repository-local CI, external styio-audit workflow, Apache-2.0 license evidence, dependency usage boundaries, security boundaries, and Stitch helper dependency governance.",
+      "scope_globs": [".github/workflows/ci-gate.yml", ".github/workflows/styio-audit.yml", "README.md", "LICENSE", "LICENSE-POLICY.md", "DEPENDENCY-USAGE.md", "SECURITY-BOUNDARIES.md", "tools/stitch/package.json", "tools/stitch/package-lock.json", "tools/stitch/generate-theme.mjs", "tools/stitch/generate-dark-palette.mjs", "tools/stitch/generate-functional-design.mjs"],
+      "copying_policy": "Generated Stitch artifacts, API keys, credentials, and dependency caches must remain untracked and outside source-distribution evidence.",
+      "concurrency_policy": "CI and audit gates must remain separate required checks; workflow template changes must be synchronized from released styio-audit policy.",
+      "nullability_policy": "Missing license, dependency usage-boundary evidence, local audit workflow, CI workflow, or dependency manifest evidence must fail delivery.",
+      "cleanup_policy": "node_modules, .stitch output, local caches, generated credentials, and temporary reports must stay ignored or be removed before delivery.",
+      "state_machine": {
+        "source": "GitHub Actions workflows, package manifests, license policy files, dependency usage evidence, and security boundary docs.",
+        "states": ["declared", "installed", "checked", "audited", "delivered", "failed"],
+        "transitions": [
+          {"from": "declared", "to": "installed", "on": "dependency manifest is present and npm install resolves"},
+          {"from": "installed", "to": "checked", "on": "repository-local tests and CI workflow pass"},
+          {"from": "checked", "to": "audited", "on": "styio-audit policy passes"},
+          {"from": "audited", "to": "delivered", "on": "protected branch pull request gates pass"},
+          {"from": "declared", "to": "failed", "on": "license, dependency, workflow, or security evidence is missing"}
+        ],
+        "invalid_operations": ["tracking generated Stitch output", "committing API keys", "removing styio-audit workflow", "adding dependencies without commercial authorization boundary evidence"]
+      },
+      "required_tests": ["python3 -m unittest discover -s tests -v", "styio-audit gate for styio-community"],
+      "required_gates": ["ci-gate", "styio-audit"],
+      "audit_risks": ["license drift", "commercial authorization dependency drift", "workflow drift", "secret leakage", "missing hosted security boundary"]
+    }
+  ]
+}

@@ -14,6 +14,7 @@
 - `for-styio-view/` contains Flutter workspace, adapter, module, runtime, and platform audit resources.
 - `for-styio-platform/` contains cloud service, native contract, registry distribution, regional node, and delivery-gate audit resources.
 - `for-styio-audit/` contains audit-framework, report, license-policy, and dependency-risk audit resources.
+- `for-styio-community/` contains decision coordination, local HTTP API, forum, web UI, dependency, and delivery-governance audit resources.
 - `for-.../` directories can be added for future repositories without changing the core loader.
 
 Each module is loaded from `module.json`. A module can also define `checks.py` with `run(context)` for custom dynamic checks.
@@ -74,12 +75,13 @@ python3 -m styio_audit.cli gate --repo ../styio-nightly --project styio
 python3 -m styio_audit.cli gate --repo ../styio-spio --project styio-spio
 python3 -m styio_audit.cli gate --repo ../styio-view --project styio-view
 python3 -m styio_audit.cli gate --repo ../styio-platform --project styio-platform
+python3 -m styio_audit.cli gate --repo ../styio-community --project styio-community
 python3 -m styio_audit.cli gate --repo . --project styio-audit
 ```
 
 ## Default Policy Gates
 
-The default module applies repository-wide policy gates to all Styio-family projects: `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+The default module applies repository-wide policy gates to all Styio-family projects: `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
 
 Manifest inventory policy:
 

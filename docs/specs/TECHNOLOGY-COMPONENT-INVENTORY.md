@@ -188,7 +188,7 @@ Dependency manifest surfaces:
 
 - `pyproject.toml`.
 - `modules/default/module.json`.
-- `for-styio/module.json`, `for-styio-spio/module.json`, `for-styio-view/module.json`, `for-styio-platform/module.json`, `for-styio-audit/module.json`.
+- `for-styio/module.json`, `for-styio-spio/module.json`, `for-styio-view/module.json`, `for-styio-platform/module.json`, `for-styio-community/module.json`, `for-styio-audit/module.json`.
 
 ## Audit Rule
 

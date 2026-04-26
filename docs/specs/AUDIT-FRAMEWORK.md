@@ -89,7 +89,7 @@ Gate failure is based on audit quality. Passing application tests is not enough 
 
 ## License And Commercial-Risk Policy
 
-The default module applies source-license and commercial-risk gates to `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+The default module applies source-license and commercial-risk gates to `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`.
 
 License checks require:
 
