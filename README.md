@@ -43,6 +43,11 @@ This repository owns two separate workflows:
 - `.github/workflows/self-promotion-gate.yml` validates `styio-audit` for `nightly`, `stable`, and `main` promotion. This is the workflow that should be required for `styio-audit` promotion into protected promotion branches.
 - `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then checks out the configured eBioRing Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
 
+`styio-dev-env`, `styio-dev-doc`, `styio-book`, `styio-example`, and
+`styio-ext-vsc` are not in `styio-audit` governance scope. `styio-deprecated`
+is no longer maintained and is reference-only, not a maintained or audited
+Styio delivery project.
+
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
 
 The authoritative repository-local audit workflow template is stored in [templates/workflows/styio-audit-local.yml](templates/workflows/styio-audit-local.yml). Upstream eBioRing repositories must keep their `.github/workflows/styio-audit.yml` file identical to that template after rendering repository and project placeholders. That template reports the repository-local required check name `styio-audit`, and `styio-audit gate` validates the exact workflow match during submission.

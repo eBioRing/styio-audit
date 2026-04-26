@@ -35,6 +35,11 @@ External audit and repository-local quality gates are separate layers. Repositor
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
+The audit governance scope intentionally excludes `styio-dev-env`,
+`styio-dev-doc`, `styio-book`, `styio-example`, and `styio-ext-vsc`.
+`styio-deprecated` is no longer maintained and is reference-only; it is not a
+maintained delivery project and must not be treated as an audit coverage gap.
+
 Detailed branch roles, promotion paths, downstream submission rules, and live GitHub Ruleset expectations are maintained in [BRANCH-GOVERNANCE.md](BRANCH-GOVERNANCE.md). This framework document references that policy and keeps only the framework-facing constraints:
 
 1. Every upstream eBioRing repository in scope must expose `stable`, `nightly`, and `ai-dev` branch evidence.

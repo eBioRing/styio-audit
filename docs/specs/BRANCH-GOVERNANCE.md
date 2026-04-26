@@ -14,6 +14,11 @@ This policy applies to:
 - eBioRing upstream Styio-family repositories audited by `ecosystem-audit`
 - downstream Styio-family repositories that adopt the same promotion model through repository-local workflows
 
+This policy does not apply to `styio-dev-env`, `styio-dev-doc`, `styio-book`,
+`styio-example`, or `styio-ext-vsc`. `styio-deprecated` is no longer maintained
+and is reference-only, so it is outside both branch-governance and audit
+coverage expectations.
+
 ## Branch Roles
 
 | Branch | Role | Writable | Entry mode | Primary gate |
