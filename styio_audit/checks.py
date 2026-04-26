@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import json
 import os
 import re
 import subprocess
@@ -36,6 +37,10 @@ DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
     {"head": "ai-dev", "base": "nightly"},
     {"head": "nightly", "base": "stable"},
     {"head": "stable", "base": "main"},
+]
+DEFAULT_UPSTREAM_DOWNSTREAM_REPOSITORY_OWNERS = ["Unka-Malloc"]
+DEFAULT_UPSTREAM_DOWNSTREAM_SYNC_PULL_REQUEST_FLOWS = [
+    {"head": "nightly", "base": "nightly"},
 ]
 DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
 DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
@@ -1056,6 +1061,34 @@ def policy_branch_flows(policy: dict[str, Any], key: str, default: list[dict[str
     return result
 
 
+def github_pull_request_repo_owners() -> tuple[str | None, str | None]:
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path:
+        return None, None
+    try:
+        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    pull_request = payload.get("pull_request")
+    if not isinstance(pull_request, dict):
+        return None, None
+
+    def owner_login(side: str) -> str | None:
+        ref = pull_request.get(side)
+        if not isinstance(ref, dict):
+            return None
+        repo = ref.get("repo")
+        if not isinstance(repo, dict):
+            return None
+        owner = repo.get("owner")
+        if not isinstance(owner, dict):
+            return None
+        login = owner.get("login")
+        return login if isinstance(login, str) and login else None
+
+    return owner_login("head"), owner_login("base")
+
+
 def policy_marker_map(policy: dict[str, Any], key: str) -> dict[str, list[str]]:
     raw = policy.get(key, {})
     if not isinstance(raw, dict):
@@ -1601,6 +1634,8 @@ def check_pull_request_flow_policy(
     default_target_repository_owners: list[str],
     default_development_base_branches: list[str],
     default_required_pull_request_flows: list[dict[str, str]],
+    default_downstream_repository_owners: list[str] | None = None,
+    default_downstream_sync_pull_request_flows: list[dict[str, str]] | None = None,
 ) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -1625,6 +1660,14 @@ def check_pull_request_flow_policy(
     head_ref = os.environ.get("GITHUB_HEAD_REF", "")
     development_base_branches = set(policy_strings(policy, "development_base_branches", default_development_base_branches))
     required_flows = policy_branch_flows(policy, "required_pull_request_flows", default_required_pull_request_flows)
+    downstream_repository_owners = set(
+        policy_strings(policy, "downstream_repository_owners", default_downstream_repository_owners or [])
+    )
+    downstream_sync_flows = policy_branch_flows(
+        policy,
+        "downstream_sync_pull_request_flows",
+        default_downstream_sync_pull_request_flows or [],
+    )
     required_heads_by_base: dict[str, list[str]] = {}
     for head, base in required_flows.items():
         required_heads_by_base.setdefault(base, []).append(head)
@@ -1640,6 +1683,15 @@ def check_pull_request_flow_policy(
                     default.module_id,
                 )
             ]
+        if downstream_repository_owners and downstream_sync_flows:
+            head_owner, base_owner = github_pull_request_repo_owners()
+            base_owner_allowed = base_owner in target_repository_owners or base_owner == owner
+            if (
+                head_owner in downstream_repository_owners
+                and base_owner_allowed
+                and downstream_sync_flows.get(head_ref) == base_ref
+            ):
+                return []
         if allowed_base_branches and base_ref not in allowed_base_branches:
             findings.append(
                 finding(
@@ -1683,6 +1735,8 @@ def check_upstream_branch_flow_policy(context: AuditContext) -> list[AuditFindin
         DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS,
         DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES,
         DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS,
+        DEFAULT_UPSTREAM_DOWNSTREAM_REPOSITORY_OWNERS,
+        DEFAULT_UPSTREAM_DOWNSTREAM_SYNC_PULL_REQUEST_FLOWS,
     )
 
 
