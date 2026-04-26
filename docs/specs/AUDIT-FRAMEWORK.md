@@ -29,15 +29,17 @@ For maintenance automation, `styio-audit` provides repository-local workflow syn
 
 These commands render the same authoritative template that protected-branch delivery consumes from `styio-audit@stable`. `--check` mode is intended for automation and fails on workflow drift without rewriting files.
 
-`styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/audit-self-essential.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for all branches. It validates module schema, unit tests, and the `styio-audit` self gate with branch-governance checks disabled, so temporary branches still receive documentation, schema, and security coverage. `.github/workflows/audit-self-complete.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for `stable` and `main`. It validates the same framework plus branch-governance checks. `audit-self-complete` is the only self-promotion status check that should be required for `styio-audit` promotion into `stable` and `main`.
+External audit and repository-local quality gates are separate layers. Repository-local workflows still execute project-specific build, test, parser, runtime, hygiene, and documentation tools because only the target repository owns those implementation details. `styio-audit` owns the contract around that framework: upstream compiler repositories must keep the CI gate, workflow scheduler, delivery gate, runtime-surface check, workflow-orchestration documentation, syntax-addition workflow documentation, delivery documentation, and scheduler tests present and wired through registered scheduler profiles. The gate fails when those contract files or required scheduler markers drift, even if the repository's local tests would otherwise pass.
+
+`styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/self-audit-baseline.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for all branches. It validates module schema, unit tests, and the `styio-audit` self gate with branch-governance checks disabled, so temporary branches still receive documentation, schema, and security coverage. `.github/workflows/self-promotion-gate.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for `nightly`, `stable`, and `main`. It validates the same framework plus branch-governance checks. `self-promotion-gate` is the self-promotion status check that should be required for `styio-audit` promotion into protected promotion branches.
 
 `styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
 Detailed branch roles, promotion paths, downstream submission rules, and live GitHub Ruleset expectations are maintained in [BRANCH-GOVERNANCE.md](BRANCH-GOVERNANCE.md). This framework document references that policy and keeps only the framework-facing constraints:
 
 1. Every upstream eBioRing repository in scope must expose `stable`, `nightly`, and `ai-dev` branch evidence.
-2. `styio-audit` must run `audit-self-essential` on every branch so writable branches always produce current audit evidence.
-3. `styio-audit` must require `audit-self-complete` for promotion into `stable` and `main`.
+2. `styio-audit` must run `self-audit-baseline` on every branch so writable branches always produce current audit evidence.
+3. `styio-audit` must require `self-promotion-gate` for promotion into `nightly`, `stable`, and `main`.
 4. `ecosystem-audit` must remain visible but must not block `styio-audit` self-promotion.
 5. Downstream repositories must run repository-local `styio-audit` workflows for their own pull-request and protected-branch delivery.
 6. Upstream eBioRing repositories must keep `.github/workflows/styio-audit.yml` identical to the authoritative template rendered from `templates/workflows/styio-audit-local.yml`, and `styio-audit gate` must fail if that file drifts.
@@ -72,14 +74,16 @@ The manifest inventory fields are blocking audit inputs. If a project module doe
 2. Required project manifest inventory lists.
 3. Required `stable`, `nightly`, and `ai-dev` branch evidence from local or remote-tracking git refs for eBioRing upstream repositories.
 4. Upstream and downstream pull request merge-flow boundaries, including the rule that temporary branches may target only `ai-dev` or `nightly`.
-5. Resource-class state machines.
-6. Target repository scope globs.
-7. Styio-family Apache-2.0 license evidence and source-distribution notices.
-8. Dependency commercial-risk evidence, including dependency usage boundaries and prohibited commercial authorization markers.
-9. Server-deployment sensitive security boundaries for authentication, privacy, password storage, keys, tokens, and production secret material.
-10. Current-worktree secret evidence for passwords, tokens, API keys, private keys, client secrets, and access keys.
-11. Target defect records when present, unless `--framework-only` is used.
-12. Optional dynamic module hooks.
+5. Repository-local `styio-audit.yml` workflow conformance to the released authoritative template.
+6. Styio compiler local delivery-framework contract files and scheduler markers.
+7. Resource-class state machines.
+8. Target repository scope globs.
+9. Styio-family Apache-2.0 license evidence and source-distribution notices.
+10. Dependency commercial-risk evidence, including dependency usage boundaries and prohibited commercial authorization markers.
+11. Server-deployment sensitive security boundaries for authentication, privacy, password storage, keys, tokens, and production secret material.
+12. Current-worktree secret evidence for passwords, tokens, API keys, private keys, client secrets, and access keys.
+13. Target defect records when present, unless `--framework-only` is used.
+14. Optional dynamic module hooks.
 
 Gate failure is based on audit quality. Passing application tests is not enough to override a failed audit framework check.
 
