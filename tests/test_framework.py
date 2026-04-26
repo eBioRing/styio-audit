@@ -978,6 +978,72 @@ class FrameworkTests(unittest.TestCase):
                     findings = self._run_demo_gate(framework_root, repo_root)
                 self.assertEqual([], [finding.message for finding in findings])
 
+    def test_upstream_branch_flow_allows_downstream_nightly_sync_to_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            event_path = Path(tmp) / "event.json"
+            event_path.write_text(
+                json.dumps(
+                    {
+                        "pull_request": {
+                            "head": {"repo": {"owner": {"login": "Unka-Malloc"}}},
+                            "base": {"repo": {"owner": {"login": "eBioRing"}}},
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "nightly",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_upstream_branch_flow_rejects_internal_nightly_to_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            event_path = Path(tmp) / "event.json"
+            event_path.write_text(
+                json.dumps(
+                    {
+                        "pull_request": {
+                            "head": {"repo": {"owner": {"login": "eBioRing"}}},
+                            "base": {"repo": {"owner": {"login": "eBioRing"}}},
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "nightly",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("`nightly` can only merge into `stable`, not `nightly`" in message for message in messages))
+
     def test_upstream_branch_flow_rejects_ai_dev_to_stable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"

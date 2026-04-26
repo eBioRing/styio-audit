@@ -46,8 +46,9 @@ Required constraints:
 Downstream repositories are outside the upstream `ecosystem-audit` fan-out boundary, but they must follow the same promotion structure when contributing into upstream protected branches.
 
 1. A fork-based downstream branch may contribute into upstream `nightly`, `stable`, or `main` only through a pull request opened against the upstream repository.
-2. Required status checks for an upstream protected branch must run in the upstream repository context. A downstream repository's own CI result does not satisfy upstream required checks by itself.
-3. A non-fork external repository cannot promote directly into an upstream protected branch. The change must first exist on an upstream branch and then be promoted through the normal pull-request path.
+2. `Unka-Malloc` downstream `nightly` may synchronize only into upstream `nightly`; it must not bypass upstream `nightly` by targeting `stable` or `main` directly.
+3. Required status checks for an upstream protected branch must run in the upstream repository context. A downstream repository's own CI result does not satisfy upstream required checks by itself.
+4. A non-fork external repository cannot promote directly into an upstream protected branch. The change must first exist on an upstream branch and then be promoted through the normal pull-request path.
 
 ## GitHub Ruleset Policy
 
@@ -75,6 +76,7 @@ The current model intentionally trades delivery speed for boundary clarity:
 
 - `temporary branch -> nightly` now requires a pull request instead of same-SHA direct promotion.
 - `ai-dev -> nightly` now requires a pull request instead of direct promotion.
+- `Unka-Malloc:nightly -> eBioRing:nightly` is the supported downstream synchronization path for nightly work.
 - `nightly -> stable` and `stable -> main` continue to require pull requests.
 - A promotion pull request must produce current required status checks for the candidate commit before it can merge.
 
