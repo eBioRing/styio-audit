@@ -210,6 +210,58 @@ class FrameworkTests(unittest.TestCase):
             },
         )
 
+    def _write_local_delivery_framework_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-04-26",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+                "local_delivery_framework_policy": {
+                    "enabled": True,
+                    "name": "Local delivery framework contract.",
+                    "target_project_ids": ["demo"],
+                    "target_repository_owners": ["eBioRing"],
+                    "required_files": [
+                        ".github/workflows/styio-ci-gate.yml",
+                        "scripts/workflow-scheduler.py",
+                    ],
+                    "required_markers": {
+                        ".github/workflows/styio-ci-gate.yml": [
+                            "workflow-scheduler.py run --profile ci-prebuild",
+                        ],
+                        "scripts/workflow-scheduler.py": [
+                            "WORKFLOW_DOCS",
+                            "PROFILES",
+                        ],
+                    },
+                },
+            },
+        )
+
+    def _write_local_delivery_framework_files(self, repo_root: Path) -> None:
+        self._write_file(
+            repo_root,
+            ".github/workflows/styio-ci-gate.yml",
+            "name: styio-ci-gate\n"
+            "jobs:\n"
+            "  ci:\n"
+            "    steps:\n"
+            "      - run: python3 scripts/workflow-scheduler.py run --profile ci-prebuild\n",
+        )
+        self._write_file(
+            repo_root,
+            "scripts/workflow-scheduler.py",
+            "WORKFLOW_DOCS = ()\n"
+            "PROFILES = ()\n",
+        )
+
     def _write_policy_default_module(self, framework_root: Path) -> None:
         self._write_json(
             framework_root,
@@ -733,6 +785,56 @@ class FrameworkTests(unittest.TestCase):
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("does not match authoritative template" in message for message in messages))
+
+    def test_local_delivery_framework_policy_accepts_required_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_local_delivery_framework_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._write_local_delivery_framework_files(repo_root)
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_local_delivery_framework_policy_rejects_missing_ci_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_local_delivery_framework_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._write_file(repo_root, "scripts/workflow-scheduler.py", "WORKFLOW_DOCS = ()\nPROFILES = ()\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("missing required file `.github/workflows/styio-ci-gate.yml`" in message for message in messages))
+
+    def test_local_delivery_framework_policy_rejects_marker_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_local_delivery_framework_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._write_file(
+                repo_root,
+                ".github/workflows/styio-ci-gate.yml",
+                "name: styio-ci-gate\njobs:\n  ci:\n    steps:\n      - run: python3 scripts/other-gate.py\n",
+            )
+            self._write_file(repo_root, "scripts/workflow-scheduler.py", "WORKFLOW_DOCS = ()\nPROFILES = ()\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("missing required marker `workflow-scheduler.py run --profile ci-prebuild`" in message for message in messages))
 
     def test_downstream_branch_flow_allows_feature_to_ai_dev(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
