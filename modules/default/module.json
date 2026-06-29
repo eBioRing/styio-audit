@@ -180,6 +180,21 @@
     "history_scan_required": true,
     "history_scan_command": "python3 -m styio_audit.cli secret-history --repo /path/to/repo --project <project> --format json"
   },
+  "ip_exposure_policy": {
+    "enabled": true,
+    "target_project_ids": ["*"],
+    "allow_loopback": true,
+    "ignored_path_parts": [".git", ".dart_tool", ".pytest_cache", ".venv", "__pycache__", "build", "dist", "node_modules", "venv"],
+    "max_file_bytes": 1048576,
+    "allowed_service_ip_occurrences": [
+      {
+        "service": "github-pages-apex-dns",
+        "reason": "GitHub Pages custom apex domains require DNS A/AAAA records pointing to the published GitHub Pages addresses unless the DNS provider supports ALIAS/ANAME flattening.",
+        "ips": ["185.199.108.153", "185.199.109.153", "185.199.110.153", "185.199.111.153", "2606:50c0:8000::153", "2606:50c0:8001::153", "2606:50c0:8002::153", "2606:50c0:8003::153"],
+        "path_globs": ["docs/dns-and-pages.html", "docs/**/dns-and-pages.html", "modules/default/module.json"]
+      }
+    ]
+  },
   "server_sensitive_boundary_policy": {
     "enabled": true,
     "name": "Styio server-deployment sensitive security boundary policy",

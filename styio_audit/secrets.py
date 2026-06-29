@@ -48,7 +48,7 @@ IGNORED_FILE_SUFFIXES = {
 PLACEHOLDER_TERMS = {
     "changeme",
     "dummy",
-    "dev-token",
+    "example-token",
     "dev_token",
     "example",
     "fake",

@@ -51,10 +51,10 @@ For compiler repositories, `styio-audit` also audits the local delivery-framewor
 To align repository-local workflows with the released external standard, sync them from `styio-audit@origin/stable`:
 
 ```sh
-python3 -m styio_audit.cli sync-local-workflow --repo /home/unka/eBioRing/styio --project styio --framework-ref origin/stable
-python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /home/unka/eBioRing --framework-ref origin/stable
-python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /home/unka/eBioRing --framework-ref origin/stable --check
-./scripts/sync-upstream-local-workflows.sh --workspace-root /home/unka/eBioRing --framework-ref origin/stable
+python3 -m styio_audit.cli sync-local-workflow --repo <workspace-root>/styio --project styio --framework-ref origin/stable
+python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root <workspace-root> --framework-ref origin/stable
+python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root <workspace-root> --framework-ref origin/stable --check
+./scripts/sync-upstream-local-workflows.sh --workspace-root <workspace-root> --framework-ref origin/stable
 ```
 
 Use `--framework-ref HEAD` only when preparing an unreleased workflow-template change on `ai-dev`; protected-branch delivery should continue to consume the released `origin/stable` template.
@@ -124,6 +124,12 @@ Secret-scan policy:
 - Current worktrees are scanned for passwords, tokens, API keys, private keys, client secrets, and access keys.
 - Git history can be scanned with `secret-history`; findings are redacted and report only rule id, location, fingerprint, value length, and first/last commit.
 - Findings must never print the suspected secret value.
+
+IP exposure policy:
+
+- Current worktrees are scanned for IPv4 and IPv6 literals.
+- Loopback addresses, such as `127.0.0.1` and `::1`, are allowed for local examples.
+- Non-loopback IP literals fail unless they match an explicitly scoped service-DNS allowlist entry. The default allowlist is limited to GitHub Pages apex-domain A/AAAA records in DNS configuration documentation.
 
 ## Report Format
 

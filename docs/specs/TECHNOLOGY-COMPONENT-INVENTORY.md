@@ -6,7 +6,7 @@
 
 This inventory is the baseline required by `modules/default/module.json`. A project module manifest must list `technology_stack`, `internal_components`, `open_source_components`, and `dependency_manifests`; otherwise `styio-audit validate-modules` and every downstream gate fail. Server-deployment modules must also document `security_boundaries` for authentication, privacy, password handling, secret/key material, production/offline material, permission matrices, deployment security, dependency vulnerability evidence, DAST/penetration regression, runtime secret management, rate-limit/anti-replay controls, log redaction, SSRF/egress controls, and command-execution boundaries before the audit gate can pass.
 
-`styio` currently maps to the local `styio-nightly` checkout for audit evidence because `/home/unka/styio` is not present in this workspace.
+`styio` currently maps to the local `styio-nightly` checkout for audit evidence because `<styio-workspace>` is not present in this workspace.
 
 ## styio / styio-nightly
 

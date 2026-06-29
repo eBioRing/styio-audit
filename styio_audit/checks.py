@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import ipaddress
 import os
 import re
 import subprocess
@@ -286,6 +287,30 @@ DEFAULT_SERVER_PROJECT_MARKERS = [
     "server deployment|server-deployment|server-side|backend|服务端",
     "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control",
 ]
+DEFAULT_IP_SCAN_IGNORED_PATH_PARTS = {
+    ".dart_tool",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+}
+IPV4_RE = re.compile(
+    r"(?<![0-9.])"
+    r"(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])"
+    r"(?:\.(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}"
+    r"(?![0-9.])"
+)
+IPV6_RE = re.compile(
+    r"(?<![A-Za-z0-9_:.-])"
+    r"(?:::(?:1)?|(?:[0-9A-Fa-f]{1,4}:){1,7}:[0-9A-Fa-f]{0,4}|(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4})"
+    r"(?![A-Za-z0-9_:.-])"
+)
 
 
 def finding(message: str, module_id: str = "core", severity: str = "error") -> AuditFinding:
@@ -560,6 +585,49 @@ def validate_secret_scan_policy(policy: Any, module_id: str) -> list[AuditFindin
     return findings
 
 
+def validate_ip_exposure_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module ip_exposure_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module ip_exposure_policy.enabled must be a boolean", module_id))
+    if "allow_loopback" in policy and not isinstance(policy.get("allow_loopback"), bool):
+        findings.append(finding("module ip_exposure_policy.allow_loopback must be a boolean", module_id))
+    for key in ("target_project_ids", "ignored_path_parts"):
+        values, key_findings = get_optional_string_list(policy, key, "module ip_exposure_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module ip_exposure_policy `{key}` entries must be unique", module_id))
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        findings.append(finding("module ip_exposure_policy.max_file_bytes must be a positive integer", module_id))
+
+    entries = policy.get("allowed_service_ip_occurrences", [])
+    if not isinstance(entries, list):
+        findings.append(finding("module ip_exposure_policy.allowed_service_ip_occurrences must be a list", module_id))
+        return findings
+    for index, entry in enumerate(entries):
+        context = f"module ip_exposure_policy.allowed_service_ip_occurrences[{index}]"
+        if not isinstance(entry, dict):
+            findings.append(finding(f"{context} must be an object", module_id))
+            continue
+        for key in ("service", "reason"):
+            findings.extend(require_string(entry, key, context, module_id))
+        ips, ip_findings = get_string_list(entry, "ips", context, module_id)
+        findings.extend(ip_findings)
+        for value in ips:
+            try:
+                ipaddress.ip_address(value)
+            except ValueError:
+                findings.append(finding(f"{context}.ips contains invalid IP address `{value}`", module_id))
+        path_globs, path_findings = get_string_list(entry, "path_globs", context, module_id)
+        findings.extend(path_findings)
+        if path_globs and len(path_globs) != len(unique_strings(path_globs)):
+            findings.append(finding(f"{context}.path_globs entries must be unique", module_id))
+    return findings
+
+
 def validate_server_sensitive_boundary_policy(policy: Any, module_id: str) -> list[AuditFinding]:
     if not isinstance(policy, dict):
         return [finding("module server_sensitive_boundary_policy must be an object", module_id)]
@@ -659,6 +727,8 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_downstream_branch_flow_policy(data["downstream_branch_flow_policy"], module.module_id))
         if "secret_scan_policy" in data:
             findings.extend(validate_secret_scan_policy(data["secret_scan_policy"], module.module_id))
+        if "ip_exposure_policy" in data:
+            findings.extend(validate_ip_exposure_policy(data["ip_exposure_policy"], module.module_id))
         if "server_sensitive_boundary_policy" in data:
             findings.extend(validate_server_sensitive_boundary_policy(data["server_sensitive_boundary_policy"], module.module_id))
     else:
@@ -1346,6 +1416,156 @@ def check_secret_scan_policy(context: AuditContext, files: list[str]) -> list[Au
     return findings
 
 
+def path_matches_glob(relative_path: str, pattern: str) -> bool:
+    if not any(ch in pattern for ch in "*?["):
+        return relative_path == pattern or relative_path.startswith(pattern.rstrip("/") + "/")
+    return fnmatch.fnmatch(relative_path, pattern)
+
+
+def allowed_service_ip_entries(policy: dict[str, Any]) -> list[dict[str, object]]:
+    entries = policy.get("allowed_service_ip_occurrences", [])
+    if not isinstance(entries, list):
+        return []
+    result: list[dict[str, object]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        ips: list[ipaddress._BaseAddress] = []
+        for value in entry.get("ips", []):
+            if not isinstance(value, str) or not value.strip():
+                continue
+            try:
+                ips.append(ipaddress.ip_address(value.strip()))
+            except ValueError:
+                continue
+        path_globs = [item for item in entry.get("path_globs", []) if isinstance(item, str) and item.strip()]
+        service = entry.get("service", "service allowlist")
+        if ips and path_globs:
+            result.append({"service": str(service), "ips": ips, "path_globs": path_globs})
+    return result
+
+
+def ip_occurrence_is_allowed(
+    ip: ipaddress._BaseAddress,
+    relative_path: str,
+    *,
+    allow_loopback: bool,
+    service_entries: list[dict[str, object]],
+) -> tuple[bool, str | None]:
+    if allow_loopback and ip.is_loopback:
+        return True, "loopback"
+    for entry in service_entries:
+        ips = entry.get("ips", [])
+        path_globs = entry.get("path_globs", [])
+        if not isinstance(ips, list) or not isinstance(path_globs, list):
+            continue
+        if ip not in ips:
+            continue
+        if any(isinstance(pattern, str) and path_matches_glob(relative_path, pattern) for pattern in path_globs):
+            return True, str(entry.get("service", "service allowlist"))
+    return False, None
+
+
+def scan_ip_exposure_file(
+    relative_path: str,
+    text: str,
+    *,
+    allow_loopback: bool,
+    service_entries: list[dict[str, object]],
+    module_id: str,
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    seen: set[tuple[str, int, str]] = set()
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        candidates: list[tuple[str, ipaddress._BaseAddress]] = []
+        for match in IPV4_RE.finditer(line):
+            value = match.group(0)
+            try:
+                candidates.append((value, ipaddress.ip_address(value)))
+            except ValueError:
+                continue
+        for match in IPV6_RE.finditer(line):
+            value = match.group(0)
+            try:
+                ip = ipaddress.ip_address(value)
+            except ValueError:
+                continue
+            if ip.version == 6:
+                candidates.append((value, ip))
+
+        for value, ip in candidates:
+            key = (relative_path, line_number, value)
+            if key in seen:
+                continue
+            seen.add(key)
+            allowed, _reason = ip_occurrence_is_allowed(
+                ip,
+                relative_path,
+                allow_loopback=allow_loopback,
+                service_entries=service_entries,
+            )
+            if allowed:
+                continue
+            findings.append(
+                finding(
+                    f"ip exposure: {relative_path}:{line_number} contains non-whitelisted IP address `{value}`; "
+                    "loopback addresses and explicitly scoped service DNS records are the only allowed IP literals",
+                    module_id,
+                )
+            )
+    return findings
+
+
+def check_ip_exposure_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("ip_exposure_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and "*" not in target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        max_file_bytes = DEFAULT_MAX_FILE_BYTES
+    ignored_parts = set(policy_strings(policy, "ignored_path_parts", sorted(DEFAULT_IP_SCAN_IGNORED_PATH_PARTS)))
+    allow_loopback = bool(policy.get("allow_loopback", True))
+    service_entries = allowed_service_ip_entries(policy)
+
+    findings: list[AuditFinding] = []
+    for relative in files:
+        if path_has_part(relative, ignored_parts):
+            continue
+        path = context.repo_root / relative
+        if not path.is_file():
+            continue
+        try:
+            if path.stat().st_size > max_file_bytes:
+                continue
+            raw = path.read_bytes()
+        except OSError:
+            continue
+        if b"\0" in raw[:4096]:
+            continue
+        text = raw.decode("utf-8", errors="replace")
+        findings.extend(
+            scan_ip_exposure_file(
+                relative,
+                text,
+                allow_loopback=allow_loopback,
+                service_entries=service_entries,
+                module_id=default.module_id,
+            )
+        )
+    return findings
+
+
 def git_ref_exists(repo_root: Path, ref_name: str) -> bool:
     proc = subprocess.run(
         ["git", "show-ref", "--verify", "--quiet", ref_name],
@@ -1868,6 +2088,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         findings.extend(check_downstream_branch_flow_policy(context))
         findings.extend(check_license_policy(context))
         findings.extend(check_commercial_risk_policy(context, files))
+        findings.extend(check_ip_exposure_policy(context, files))
         findings.extend(check_secret_scan_policy(context, files))
         findings.extend(check_server_sensitive_boundary_policy(context, files))
         findings.extend(check_defect_records(context))

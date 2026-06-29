@@ -231,7 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
         "sync-upstream-local-workflows",
         help="Render or verify authoritative repository-local styio-audit workflows for all managed upstream repositories under one workspace root.",
     )
-    sync_upstream.add_argument("--workspace-root", required=True, help="Workspace root that contains managed upstream repositories, such as /home/unka/eBioRing.")
+    sync_upstream.add_argument("--workspace-root", required=True, help="Workspace root that contains managed upstream repositories, such as <workspace-root>.")
     sync_upstream.add_argument(
         "--framework-ref",
         default=DEFAULT_FRAMEWORK_REF,

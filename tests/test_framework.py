@@ -1422,6 +1422,92 @@ class FrameworkTests(unittest.TestCase):
         self.assertTrue(findings[0].fingerprint.startswith("sha256:"))
         self.assertNotIn(token, findings[0].to_dict().values())
 
+    def test_ip_exposure_policy_allows_loopback_and_rejects_other_ips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            public_ip = "203.0" + ".113.9"
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                        "max_file_bytes": 1048576,
+                    },
+                },
+            )
+            self._write_file(
+                repo_root,
+                "README.md",
+                "Local examples may use http://127.0.0.1:8080 and http://[::1]:8080.\n"
+                f"External service address {public_ip} must not be committed.\n",
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any(public_ip in message for message in messages))
+            self.assertFalse(any("127.0.0.1" in message for message in messages))
+            self.assertFalse(any("::1" in message for message in messages))
+
+    def test_ip_exposure_policy_scopes_github_pages_dns_allowlist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            pages_ipv4 = "185.199.108" + ".153"
+            pages_ipv6 = "2606:50c0:8000:" + ":153"
+            unrelated_ip = "8.8" + ".8.8"
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                        "allowed_service_ip_occurrences": [
+                            {
+                                "service": "github-pages-apex-dns",
+                                "reason": "GitHub Pages apex DNS records.",
+                                "ips": [pages_ipv4, pages_ipv6],
+                                "path_globs": ["docs/dns-and-pages.html"],
+                            }
+                        ],
+                    },
+                },
+            )
+            self._write_file(
+                repo_root,
+                "docs/dns-and-pages.html",
+                f"GitHub Pages apex A {pages_ipv4} and AAAA {pages_ipv6} are documented here.\n"
+                f"Unrelated DNS {unrelated_ip} still fails.\n",
+            )
+            self._write_file(repo_root, "src/app.txt", f"Hard-coded GitHub Pages IP {pages_ipv4} outside DNS docs.\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any(unrelated_ip in message and "docs/dns-and-pages.html" in message for message in messages))
+            self.assertTrue(any(pages_ipv4 in message and "src/app.txt" in message for message in messages))
+            self.assertFalse(any(pages_ipv6 in message for message in messages))
+
 
 if __name__ == "__main__":
     unittest.main()

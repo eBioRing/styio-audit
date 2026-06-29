@@ -138,6 +138,12 @@ python3 -m styio_audit.cli secret-history --repo /path/to/repo --project styio-s
 
 Secret findings are intentionally redacted. Reports include rule id, class, file path, line number, value length, fingerprint, and first/last commit for history scans, but never include the suspected secret value.
 
+## IP Exposure Policy
+
+The default module scans current worktrees for IPv4 and IPv6 literals. Loopback addresses are allowed for local development examples. Non-loopback IP literals are blocked unless they match an explicitly scoped service-DNS allowlist entry.
+
+The default service allowlist only permits the GitHub Pages apex-domain A/AAAA records in DNS configuration documentation paths. Those IPs remain invalid everywhere else in source code, scripts, and generated release material.
+
 ## Report Contract
 
 `styio-audit report` produces a versioned external-audit payload with:
