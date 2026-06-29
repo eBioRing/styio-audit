@@ -311,6 +311,7 @@ IPV6_RE = re.compile(
     r"(?:::(?:1)?|(?:[0-9A-Fa-f]{1,4}:){1,7}:[0-9A-Fa-f]{0,4}|(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4})"
     r"(?![A-Za-z0-9_:.-])"
 )
+SVG_PATH_DATA_PREFIX_RE = re.compile(r"\bd\s*=\s*[\"'][^\"']*$")
 
 
 def finding(message: str, module_id: str = "core", severity: str = "error") -> AuditFinding:
@@ -1479,6 +1480,8 @@ def scan_ip_exposure_file(
     for line_number, line in enumerate(text.splitlines(), start=1):
         candidates: list[tuple[str, ipaddress._BaseAddress]] = []
         for match in IPV4_RE.finditer(line):
+            if SVG_PATH_DATA_PREFIX_RE.search(line[: match.start()]):
+                continue
             value = match.group(0)
             try:
                 candidates.append((value, ipaddress.ip_address(value)))

@@ -1508,6 +1508,40 @@ class FrameworkTests(unittest.TestCase):
             self.assertTrue(any(pages_ipv4 in message and "src/app.txt" in message for message in messages))
             self.assertFalse(any(pages_ipv6 in message for message in messages))
 
+    def test_ip_exposure_policy_ignores_svg_path_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                    },
+                },
+            )
+            svg_decimal_run = "1.9" + ".95.95"
+            self._write_file(
+                repo_root,
+                "src/Icon.tsx",
+                f'export const Icon = () => <path d="M8 1.8a6.2 6.2 0 1 0 0 12.4A6.2 6.2 0 0 0 8 1.8zm0 6a.95.95 0 1 0 0 {svg_decimal_run} 0 0 0 0-1.9z" />;\n',
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertFalse(any(svg_decimal_run in message for message in messages))
+
 
 if __name__ == "__main__":
     unittest.main()
