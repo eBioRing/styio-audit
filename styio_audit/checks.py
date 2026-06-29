@@ -308,9 +308,10 @@ IPV4_RE = re.compile(
 )
 IPV6_RE = re.compile(
     r"(?<![A-Za-z0-9_:.-])"
-    r"(?:::(?:1)?|(?:[0-9A-Fa-f]{1,4}:){1,7}:[0-9A-Fa-f]{0,4}|(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4})"
+    r"(?:::1|(?:[0-9A-Fa-f]{1,4}:){1,7}:[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4})"
     r"(?![A-Za-z0-9_:.-])"
 )
+IPV6_UNSPECIFIED_RE = re.compile(r"(?<![A-Za-z0-9_:.-])::(?![A-Za-z0-9_:.-])")
 SVG_PATH_DATA_PREFIX_RE = re.compile(r"\bd\s*=\s*[\"'][^\"']*$")
 
 
@@ -1495,6 +1496,16 @@ def scan_ip_exposure_file(
                 continue
             if ip.version == 6:
                 candidates.append((value, ip))
+        for match in IPV6_UNSPECIFIED_RE.finditer(line):
+            if match.start() == 0 or match.end() >= len(line):
+                continue
+            if line[match.start() - 1] != "[" or line[match.end()] != "]":
+                continue
+            value = match.group(0)
+            try:
+                candidates.append((value, ipaddress.ip_address(value)))
+            except ValueError:
+                continue
 
         for value, ip in candidates:
             key = (relative_path, line_number, value)

@@ -1425,6 +1425,7 @@ class FrameworkTests(unittest.TestCase):
     def test_ip_exposure_policy_allows_loopback_and_rejects_other_ips(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             public_ip = "203.0" + ".113.9"
+            unspecified_ipv6 = "[" + "::" + "]"
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
             repo_root.mkdir()
@@ -1454,9 +1455,11 @@ class FrameworkTests(unittest.TestCase):
                 "Local examples may use http://127.0.0.1:8080 and http://[::1]:8080.\n"
                 f"External service address {public_ip} must not be committed.\n",
             )
+            self._write_file(repo_root, "nginx.conf", f"listen {unspecified_ipv6}:80;\n")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any(public_ip in message for message in messages))
+            self.assertTrue(any("nginx.conf" in message and "::" in message for message in messages))
             self.assertFalse(any("127.0.0.1" in message for message in messages))
             self.assertFalse(any("::1" in message for message in messages))
 
@@ -1541,6 +1544,36 @@ class FrameworkTests(unittest.TestCase):
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertFalse(any(svg_decimal_run in message for message in messages))
+
+    def test_ip_exposure_policy_ignores_language_namespace_separator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                    },
+                },
+            )
+            namespace_separator = ":" + ":"
+            self._write_file(repo_root, "src/main.cpp", f'unit_id += "{namespace_separator}";\n')
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertFalse(any("src/main.cpp" in message for message in messages))
 
 
 if __name__ == "__main__":
