@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import ipaddress
 import json
 import os
 import re
@@ -25,22 +26,18 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "dependency_manifests",
 ]
 DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
-DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "styio-spio", "styio-view", "styio-platform", "styio-community"]
-DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["eBioRing"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "pafio", "vityo", "styio-cloud", "styio-community"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["SymPolicy"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH = ".github/workflows/styio-audit.yml"
 DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH = "templates/workflows/styio-audit-local.yml"
 DEFAULT_LOCAL_DELIVERY_FRAMEWORK_PROJECT_IDS = ["styio", "styio-nightly"]
-DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS = ["eBioRing"]
-DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["eBioRing"]
+DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS = ["SymPolicy"]
+DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["SymPolicy"]
 DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
 DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
     {"head": "ai-dev", "base": "nightly"},
     {"head": "nightly", "base": "stable"},
     {"head": "stable", "base": "main"},
-]
-DEFAULT_UPSTREAM_DOWNSTREAM_REPOSITORY_OWNERS = ["Unka-Malloc"]
-DEFAULT_UPSTREAM_DOWNSTREAM_SYNC_PULL_REQUEST_FLOWS = [
-    {"head": "nightly", "base": "nightly"},
 ]
 DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
 DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
@@ -49,6 +46,57 @@ DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
     {"head": "nightly", "base": "stable"},
     {"head": "stable", "base": "main"},
 ]
+DEFAULT_BETTER_PLAN_PROJECT_IDS = [
+    "styio",
+    "styio-nightly",
+    "vityo",
+    "vityo-nightly",
+    "pafio",
+    "pafio-nightly",
+    "styio-cloud",
+    "styio-cloud-nightly",
+]
+DEFAULT_BETTER_PLAN_OWNERS = ["SymPolicy", "Unka-Malloc"]
+DEFAULT_BETTER_PLAN_ROOT = "docs/plan"
+DEFAULT_BETTER_PLAN_REQUIRED_ROLES = [
+    "product_requirements",
+    "evidence",
+    "validation_matrix",
+    "architecture_scaffold",
+    "implementation",
+    "final_validation",
+]
+BETTER_PLAN_VALID_STATUSES = {"pending", "in_progress", "blocked", "completed", "skipped"}
+DEFAULT_BETTER_PLAN_FORBIDDEN_ROOTS = ["docs/plans", "docs/planning", "docs/milestones"]
+DEFAULT_BETTER_PLAN_FORBIDDEN_TEXT = [
+    "docs/plans",
+    "docs/planning",
+    "docs/milestones",
+]
+BETTER_PLAN_REQUIRED_PLAN_FIELDS = {
+    "id",
+    "status",
+    "title",
+    "directory",
+    "source_files",
+    "goal",
+    "description",
+    "checkpoints",
+}
+BETTER_PLAN_REQUIRED_NODE_FIELDS = {
+    "id",
+    "status",
+    "role",
+    "prerequisites",
+    "platform",
+    "difficulty",
+    "goal",
+    "description",
+    "acceptance_criteria",
+    "commit",
+    "next",
+}
+BETTER_PLAN_VALID_NODE_ROLES = set(DEFAULT_BETTER_PLAN_REQUIRED_ROLES)
 DEFAULT_LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"]
 DEFAULT_LICENSE_METADATA_FILES = ["pyproject.toml", "package.json", "pubspec.yaml"]
 DEFAULT_LICENSE_NOTICE_FILES = ["LICENSE-POLICY.md", "NOTICE", "NOTICE.md", "README.md", "docs/LICENSE-POLICY.md"]
@@ -291,6 +339,32 @@ DEFAULT_SERVER_PROJECT_MARKERS = [
     "server deployment|server-deployment|server-side|backend|服务端",
     "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control",
 ]
+DEFAULT_IP_SCAN_IGNORED_PATH_PARTS = {
+    ".dart_tool",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+}
+IPV4_RE = re.compile(
+    r"(?<![0-9.])"
+    r"(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])"
+    r"(?:\.(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}"
+    r"(?![0-9.])"
+)
+IPV6_RE = re.compile(
+    r"(?<![A-Za-z0-9_:.-])"
+    r"(?:::1|(?:[0-9A-Fa-f]{1,4}:){1,7}:[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4})"
+    r"(?![A-Za-z0-9_:.-])"
+)
+IPV6_UNSPECIFIED_RE = re.compile(r"(?<![A-Za-z0-9_:.-])::(?![A-Za-z0-9_:.-])")
+SVG_PATH_DATA_PREFIX_RE = re.compile(r"\bd\s*=\s*[\"'][^\"']*$")
 
 
 def finding(message: str, module_id: str = "core", severity: str = "error") -> AuditFinding:
@@ -327,6 +401,10 @@ def unique_strings(values: list[str]) -> list[str]:
         seen.add(value)
         unique.append(value)
     return unique
+
+
+def is_string_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
 def get_optional_string_list(obj: dict[str, Any], key: str, context: str, module_id: str) -> tuple[list[str], list[AuditFinding]]:
@@ -478,6 +556,36 @@ def validate_local_delivery_framework_policy(policy: Any, module_id: str) -> lis
     return findings
 
 
+def validate_better_plan_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module better_plan_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module better_plan_policy.enabled must be a boolean", module_id))
+    for key in ("plan_root",):
+        findings.extend(require_string(policy, key, "module better_plan_policy", module_id))
+    for key in (
+        "target_project_ids",
+        "target_repository_owners",
+        "required_roles",
+        "forbidden_planning_roots",
+        "forbidden_text_markers",
+    ):
+        values, key_findings = get_optional_string_list(policy, key, "module better_plan_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module better_plan_policy `{key}` entries must be unique", module_id))
+    required_roles = policy.get("required_roles", DEFAULT_BETTER_PLAN_REQUIRED_ROLES)
+    if not isinstance(required_roles, list) or not required_roles:
+        findings.append(finding("module better_plan_policy.required_roles must be a non-empty list", module_id))
+    else:
+        missing = [role for role in DEFAULT_BETTER_PLAN_REQUIRED_ROLES if role not in required_roles]
+        if missing:
+            findings.append(finding(f"module better_plan_policy.required_roles missing required entries: {', '.join(missing)}", module_id))
+    return findings
+
+
 def validate_pull_request_flow_policy(
     policy: Any,
     module_id: str,
@@ -562,6 +670,49 @@ def validate_secret_scan_policy(policy: Any, module_id: str) -> list[AuditFindin
         findings.append(finding("module secret_scan_policy.max_file_bytes must be a positive integer", module_id))
     _, path_findings = get_optional_string_list(policy, "ignored_path_parts", "module secret_scan_policy", module_id)
     findings.extend(path_findings)
+    return findings
+
+
+def validate_ip_exposure_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module ip_exposure_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module ip_exposure_policy.enabled must be a boolean", module_id))
+    if "allow_loopback" in policy and not isinstance(policy.get("allow_loopback"), bool):
+        findings.append(finding("module ip_exposure_policy.allow_loopback must be a boolean", module_id))
+    for key in ("target_project_ids", "ignored_path_parts"):
+        values, key_findings = get_optional_string_list(policy, key, "module ip_exposure_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module ip_exposure_policy `{key}` entries must be unique", module_id))
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        findings.append(finding("module ip_exposure_policy.max_file_bytes must be a positive integer", module_id))
+
+    entries = policy.get("allowed_service_ip_occurrences", [])
+    if not isinstance(entries, list):
+        findings.append(finding("module ip_exposure_policy.allowed_service_ip_occurrences must be a list", module_id))
+        return findings
+    for index, entry in enumerate(entries):
+        context = f"module ip_exposure_policy.allowed_service_ip_occurrences[{index}]"
+        if not isinstance(entry, dict):
+            findings.append(finding(f"{context} must be an object", module_id))
+            continue
+        for key in ("service", "reason"):
+            findings.extend(require_string(entry, key, context, module_id))
+        ips, ip_findings = get_string_list(entry, "ips", context, module_id)
+        findings.extend(ip_findings)
+        for value in ips:
+            try:
+                ipaddress.ip_address(value)
+            except ValueError:
+                findings.append(finding(f"{context}.ips contains invalid IP address `{value}`", module_id))
+        path_globs, path_findings = get_string_list(entry, "path_globs", context, module_id)
+        findings.extend(path_findings)
+        if path_globs and len(path_globs) != len(unique_strings(path_globs)):
+            findings.append(finding(f"{context}.path_globs entries must be unique", module_id))
     return findings
 
 
@@ -658,12 +809,16 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_local_audit_workflow_policy(data["local_audit_workflow_policy"], module.module_id))
         if "local_delivery_framework_policy" in data:
             findings.extend(validate_local_delivery_framework_policy(data["local_delivery_framework_policy"], module.module_id))
+        if "better_plan_policy" in data:
+            findings.extend(validate_better_plan_policy(data["better_plan_policy"], module.module_id))
         if "upstream_branch_flow_policy" in data:
             findings.extend(validate_upstream_branch_flow_policy(data["upstream_branch_flow_policy"], module.module_id))
         if "downstream_branch_flow_policy" in data:
             findings.extend(validate_downstream_branch_flow_policy(data["downstream_branch_flow_policy"], module.module_id))
         if "secret_scan_policy" in data:
             findings.extend(validate_secret_scan_policy(data["secret_scan_policy"], module.module_id))
+        if "ip_exposure_policy" in data:
+            findings.extend(validate_ip_exposure_policy(data["ip_exposure_policy"], module.module_id))
         if "server_sensitive_boundary_policy" in data:
             findings.extend(validate_server_sensitive_boundary_policy(data["server_sensitive_boundary_policy"], module.module_id))
     else:
@@ -1061,34 +1216,6 @@ def policy_branch_flows(policy: dict[str, Any], key: str, default: list[dict[str
     return result
 
 
-def github_pull_request_repo_owners() -> tuple[str | None, str | None]:
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    if not event_path:
-        return None, None
-    try:
-        payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None, None
-    pull_request = payload.get("pull_request")
-    if not isinstance(pull_request, dict):
-        return None, None
-
-    def owner_login(side: str) -> str | None:
-        ref = pull_request.get(side)
-        if not isinstance(ref, dict):
-            return None
-        repo = ref.get("repo")
-        if not isinstance(repo, dict):
-            return None
-        owner = repo.get("owner")
-        if not isinstance(owner, dict):
-            return None
-        login = owner.get("login")
-        return login if isinstance(login, str) and login else None
-
-    return owner_login("head"), owner_login("base")
-
-
 def policy_marker_map(policy: dict[str, Any], key: str) -> dict[str, list[str]]:
     raw = policy.get(key, {})
     if not isinstance(raw, dict):
@@ -1379,6 +1506,168 @@ def check_secret_scan_policy(context: AuditContext, files: list[str]) -> list[Au
     return findings
 
 
+def path_matches_glob(relative_path: str, pattern: str) -> bool:
+    if not any(ch in pattern for ch in "*?["):
+        return relative_path == pattern or relative_path.startswith(pattern.rstrip("/") + "/")
+    return fnmatch.fnmatch(relative_path, pattern)
+
+
+def allowed_service_ip_entries(policy: dict[str, Any]) -> list[dict[str, object]]:
+    entries = policy.get("allowed_service_ip_occurrences", [])
+    if not isinstance(entries, list):
+        return []
+    result: list[dict[str, object]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        ips: list[ipaddress._BaseAddress] = []
+        for value in entry.get("ips", []):
+            if not isinstance(value, str) or not value.strip():
+                continue
+            try:
+                ips.append(ipaddress.ip_address(value.strip()))
+            except ValueError:
+                continue
+        path_globs = [item for item in entry.get("path_globs", []) if isinstance(item, str) and item.strip()]
+        service = entry.get("service", "service allowlist")
+        if ips and path_globs:
+            result.append({"service": str(service), "ips": ips, "path_globs": path_globs})
+    return result
+
+
+def ip_occurrence_is_allowed(
+    ip: ipaddress._BaseAddress,
+    relative_path: str,
+    *,
+    allow_loopback: bool,
+    service_entries: list[dict[str, object]],
+) -> tuple[bool, str | None]:
+    if allow_loopback and ip.is_loopback:
+        return True, "loopback"
+    for entry in service_entries:
+        ips = entry.get("ips", [])
+        path_globs = entry.get("path_globs", [])
+        if not isinstance(ips, list) or not isinstance(path_globs, list):
+            continue
+        if ip not in ips:
+            continue
+        if any(isinstance(pattern, str) and path_matches_glob(relative_path, pattern) for pattern in path_globs):
+            return True, str(entry.get("service", "service allowlist"))
+    return False, None
+
+
+def scan_ip_exposure_file(
+    relative_path: str,
+    text: str,
+    *,
+    allow_loopback: bool,
+    service_entries: list[dict[str, object]],
+    module_id: str,
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    seen: set[tuple[str, int, str]] = set()
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        candidates: list[tuple[str, ipaddress._BaseAddress]] = []
+        for match in IPV4_RE.finditer(line):
+            if SVG_PATH_DATA_PREFIX_RE.search(line[: match.start()]):
+                continue
+            value = match.group(0)
+            try:
+                candidates.append((value, ipaddress.ip_address(value)))
+            except ValueError:
+                continue
+        for match in IPV6_RE.finditer(line):
+            value = match.group(0)
+            try:
+                ip = ipaddress.ip_address(value)
+            except ValueError:
+                continue
+            if ip.version == 6:
+                candidates.append((value, ip))
+        for match in IPV6_UNSPECIFIED_RE.finditer(line):
+            if match.start() == 0 or match.end() >= len(line):
+                continue
+            if line[match.start() - 1] != "[" or line[match.end()] != "]":
+                continue
+            value = match.group(0)
+            try:
+                candidates.append((value, ipaddress.ip_address(value)))
+            except ValueError:
+                continue
+
+        for value, ip in candidates:
+            key = (relative_path, line_number, value)
+            if key in seen:
+                continue
+            seen.add(key)
+            allowed, _reason = ip_occurrence_is_allowed(
+                ip,
+                relative_path,
+                allow_loopback=allow_loopback,
+                service_entries=service_entries,
+            )
+            if allowed:
+                continue
+            findings.append(
+                finding(
+                    f"ip exposure: {relative_path}:{line_number} contains non-whitelisted IP address `{value}`; "
+                    "loopback addresses and explicitly scoped service DNS records are the only allowed IP literals",
+                    module_id,
+                )
+            )
+    return findings
+
+
+def check_ip_exposure_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("ip_exposure_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and "*" not in target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        max_file_bytes = DEFAULT_MAX_FILE_BYTES
+    ignored_parts = set(policy_strings(policy, "ignored_path_parts", sorted(DEFAULT_IP_SCAN_IGNORED_PATH_PARTS)))
+    allow_loopback = bool(policy.get("allow_loopback", True))
+    service_entries = allowed_service_ip_entries(policy)
+
+    findings: list[AuditFinding] = []
+    for relative in files:
+        if path_has_part(relative, ignored_parts):
+            continue
+        path = context.repo_root / relative
+        if not path.is_file():
+            continue
+        try:
+            if path.stat().st_size > max_file_bytes:
+                continue
+            raw = path.read_bytes()
+        except OSError:
+            continue
+        if b"\0" in raw[:4096]:
+            continue
+        text = raw.decode("utf-8", errors="replace")
+        findings.extend(
+            scan_ip_exposure_file(
+                relative,
+                text,
+                allow_loopback=allow_loopback,
+                service_entries=service_entries,
+                module_id=default.module_id,
+            )
+        )
+    return findings
+
+
 def git_ref_exists(repo_root: Path, ref_name: str) -> bool:
     proc = subprocess.run(
         ["git", "show-ref", "--verify", "--quiet", ref_name],
@@ -1584,6 +1873,158 @@ def check_local_delivery_framework_policy(context: AuditContext, files: list[str
     return findings
 
 
+def check_better_plan_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("better_plan_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", DEFAULT_BETTER_PLAN_PROJECT_IDS))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", DEFAULT_BETTER_PLAN_OWNERS))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"better plan policy: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
+
+    plan_root = str(policy.get("plan_root", DEFAULT_BETTER_PLAN_ROOT)).strip().strip("/")
+    required_roles = set(policy_strings(policy, "required_roles", DEFAULT_BETTER_PLAN_REQUIRED_ROLES))
+    forbidden_roots = policy_strings(policy, "forbidden_planning_roots", DEFAULT_BETTER_PLAN_FORBIDDEN_ROOTS)
+    forbidden_text = policy_strings(policy, "forbidden_text_markers", DEFAULT_BETTER_PLAN_FORBIDDEN_TEXT)
+    available_files = set(files)
+    findings: list[AuditFinding] = []
+
+    plan_root_path = context.repo_root / plan_root
+    manifest_path = plan_root_path / "Manifest.json"
+    if not plan_root_path.is_dir():
+        findings.append(finding(f"better plan policy: missing required plan root `{plan_root}`", default.module_id))
+        return findings
+    if f"{plan_root}/Manifest.json" not in available_files or not manifest_path.is_file():
+        findings.append(finding(f"better plan policy: missing `{plan_root}/Manifest.json`", default.module_id))
+        return findings
+
+    for forbidden_root in forbidden_roots:
+        normalized = forbidden_root.strip().replace("\\", "/").strip("/")
+        if not normalized:
+            continue
+        if (context.repo_root / normalized).exists() or any(path == normalized or path.startswith(f"{normalized}/") for path in files):
+            findings.append(finding(f"better plan policy: non-current planning root remains at `{normalized}`", default.module_id))
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8", errors="replace"))
+    except json.JSONDecodeError as exc:
+        return [finding(f"better plan policy: `{plan_root}/Manifest.json` is invalid JSON at line {exc.lineno}", default.module_id)]
+    if not isinstance(manifest, list) or not manifest:
+        return [finding(f"better plan policy: `{plan_root}/Manifest.json` must be a non-empty array", default.module_id)]
+
+    seen_plan_ids: set[str] = set()
+    for index, plan in enumerate(manifest):
+        prefix = f"better plan policy: plan[{index}]"
+        if not isinstance(plan, dict):
+            findings.append(finding(f"{prefix} must be an object", default.module_id))
+            continue
+        missing = sorted(BETTER_PLAN_REQUIRED_PLAN_FIELDS - set(plan))
+        for field in missing:
+            findings.append(finding(f"{prefix}.{field} missing required field", default.module_id))
+        plan_id = plan.get("id")
+        if isinstance(plan_id, str):
+            if plan_id in seen_plan_ids:
+                findings.append(finding(f"{prefix}.id duplicates `{plan_id}`", default.module_id))
+            seen_plan_ids.add(plan_id)
+        status = plan.get("status")
+        if status not in BETTER_PLAN_VALID_STATUSES:
+            findings.append(finding(f"{prefix}.status must be a Better Plan status", default.module_id))
+        directory = str(plan.get("directory", "")).strip().replace("\\", "/").strip("/")
+        checkpoints = str(plan.get("checkpoints", "")).strip().replace("\\", "/").strip("/")
+        if not directory or directory.startswith("/") or ".." in directory.split("/"):
+            findings.append(finding(f"{prefix}.directory must be a relative plan directory", default.module_id))
+            continue
+        expected_checkpoints = f"{directory}/Checkpoints.json"
+        if checkpoints != expected_checkpoints:
+            findings.append(finding(f"{prefix}.checkpoints must be `{expected_checkpoints}`", default.module_id))
+            continue
+        checkpoint_path = plan_root_path / checkpoints
+        if not checkpoint_path.is_file():
+            findings.append(finding(f"{prefix}.checkpoints missing file `{plan_root}/{checkpoints}`", default.module_id))
+            continue
+        findings.extend(check_better_plan_checkpoints(checkpoint_path, plan_root, checkpoints, required_roles, default.module_id))
+
+    for relative in sorted(path for path in files if path == plan_root or path.startswith(f"{plan_root}/")):
+        path = context.repo_root / relative
+        if not path.is_file() or path.suffix.lower() not in {".md", ".json", ".yml", ".yaml", ".py", ".sh"}:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for marker in forbidden_text:
+            if marker and marker in text:
+                findings.append(finding(f"better plan policy: `{relative}` contains non-current planning marker `{marker}`", default.module_id))
+                break
+    return findings
+
+
+def check_better_plan_checkpoints(
+    checkpoint_path: Path,
+    plan_root: str,
+    relative: str,
+    required_roles: set[str],
+    module_id: str,
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    try:
+        data = json.loads(checkpoint_path.read_text(encoding="utf-8", errors="replace"))
+    except json.JSONDecodeError as exc:
+        return [finding(f"better plan policy: `{plan_root}/{relative}` is invalid JSON at line {exc.lineno}", module_id)]
+    if not isinstance(data, list) or not data:
+        return [finding(f"better plan policy: `{plan_root}/{relative}` must be a non-empty array", module_id)]
+
+    node_ids: set[str] = set()
+    roles: set[str] = set()
+    in_progress_count = 0
+    for index, node in enumerate(data):
+        prefix = f"better plan policy: `{plan_root}/{relative}` node[{index}]"
+        if not isinstance(node, dict):
+            findings.append(finding(f"{prefix} must be an object", module_id))
+            continue
+        missing = sorted(BETTER_PLAN_REQUIRED_NODE_FIELDS - set(node))
+        for field in missing:
+            findings.append(finding(f"{prefix}.{field} missing required field", module_id))
+        node_id = node.get("id")
+        if isinstance(node_id, str):
+            if node_id in node_ids:
+                findings.append(finding(f"{prefix}.id duplicates `{node_id}`", module_id))
+            node_ids.add(node_id)
+        status = node.get("status")
+        if status not in BETTER_PLAN_VALID_STATUSES:
+            findings.append(finding(f"{prefix}.status must be a Better Plan status", module_id))
+        if status == "in_progress":
+            in_progress_count += 1
+        role = node.get("role")
+        if role not in BETTER_PLAN_VALID_NODE_ROLES:
+            findings.append(finding(f"{prefix}.role must be a Better Plan role", module_id))
+        else:
+            roles.add(str(role))
+        acceptance = node.get("acceptance_criteria")
+        if not isinstance(acceptance, list) or not acceptance:
+            findings.append(finding(f"{prefix}.acceptance_criteria must be a non-empty array", module_id))
+        for field in ("prerequisites", "next"):
+            if not is_string_list(node.get(field)):
+                findings.append(finding(f"{prefix}.{field} must be an array of strings", module_id))
+    if in_progress_count > 1:
+        findings.append(finding(f"better plan policy: `{plan_root}/{relative}` has more than one in_progress node", module_id))
+    missing_roles = sorted(required_roles - roles)
+    if missing_roles:
+        findings.append(finding(f"better plan policy: `{plan_root}/{relative}` missing required roles: {', '.join(missing_roles)}", module_id))
+    return findings
+
+
 def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -1634,8 +2075,6 @@ def check_pull_request_flow_policy(
     default_target_repository_owners: list[str],
     default_development_base_branches: list[str],
     default_required_pull_request_flows: list[dict[str, str]],
-    default_downstream_repository_owners: list[str] | None = None,
-    default_downstream_sync_pull_request_flows: list[dict[str, str]] | None = None,
 ) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -1660,14 +2099,6 @@ def check_pull_request_flow_policy(
     head_ref = os.environ.get("GITHUB_HEAD_REF", "")
     development_base_branches = set(policy_strings(policy, "development_base_branches", default_development_base_branches))
     required_flows = policy_branch_flows(policy, "required_pull_request_flows", default_required_pull_request_flows)
-    downstream_repository_owners = set(
-        policy_strings(policy, "downstream_repository_owners", default_downstream_repository_owners or [])
-    )
-    downstream_sync_flows = policy_branch_flows(
-        policy,
-        "downstream_sync_pull_request_flows",
-        default_downstream_sync_pull_request_flows or [],
-    )
     required_heads_by_base: dict[str, list[str]] = {}
     for head, base in required_flows.items():
         required_heads_by_base.setdefault(base, []).append(head)
@@ -1683,15 +2114,6 @@ def check_pull_request_flow_policy(
                     default.module_id,
                 )
             ]
-        if downstream_repository_owners and downstream_sync_flows:
-            head_owner, base_owner = github_pull_request_repo_owners()
-            base_owner_allowed = base_owner in target_repository_owners or base_owner == owner
-            if (
-                head_owner in downstream_repository_owners
-                and base_owner_allowed
-                and downstream_sync_flows.get(head_ref) == base_ref
-            ):
-                return []
         if allowed_base_branches and base_ref not in allowed_base_branches:
             findings.append(
                 finding(
@@ -1735,8 +2157,6 @@ def check_upstream_branch_flow_policy(context: AuditContext) -> list[AuditFindin
         DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS,
         DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES,
         DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS,
-        DEFAULT_UPSTREAM_DOWNSTREAM_REPOSITORY_OWNERS,
-        DEFAULT_UPSTREAM_DOWNSTREAM_SYNC_PULL_REQUEST_FLOWS,
     )
 
 
@@ -1914,6 +2334,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         files = repo_files(context.repo_root)
         findings.extend(check_local_audit_workflow_policy(context, files))
         findings.extend(check_local_delivery_framework_policy(context, files))
+        findings.extend(check_better_plan_policy(context, files))
         for module in context.modules:
             if module.module_type != "default":
                 findings.extend(validate_resource_classes(module, files))
@@ -1922,6 +2343,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         findings.extend(check_downstream_branch_flow_policy(context))
         findings.extend(check_license_policy(context))
         findings.extend(check_commercial_risk_policy(context, files))
+        findings.extend(check_ip_exposure_policy(context, files))
         findings.extend(check_secret_scan_policy(context, files))
         findings.extend(check_server_sensitive_boundary_policy(context, files))
         findings.extend(check_defect_records(context))

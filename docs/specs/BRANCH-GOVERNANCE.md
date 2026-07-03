@@ -10,8 +10,8 @@ This document is the authoritative branch-governance reference for `styio-audit`
 
 This policy applies to:
 
-- `eBioRing/styio-audit`
-- eBioRing upstream Styio-family repositories audited by `ecosystem-audit`
+- `SymPolicy/styio-audit`
+- SymPolicy upstream Styio-family repositories audited by `ecosystem-audit`
 - downstream Styio-family repositories that adopt the same promotion model through repository-local workflows
 
 ## Branch Roles
@@ -28,7 +28,7 @@ This policy applies to:
 
 ## Upstream Promotion Flow
 
-For eBioRing upstream repositories, the managed promotion chain is:
+For SymPolicy upstream repositories, the managed promotion chain is:
 
 `temporary branch -> ai-dev -> nightly -> stable -> main`
 

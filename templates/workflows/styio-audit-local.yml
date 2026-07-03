@@ -27,7 +27,7 @@ jobs:
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
-          repository: eBioRing/styio-audit
+          repository: SymPolicy/styio-audit
           ref: stable
           path: styio-audit
 
