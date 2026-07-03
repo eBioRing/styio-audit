@@ -22,18 +22,18 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - repo: eBioRing/styio-audit
+          - repo: SymPolicy/styio-audit
             path: styio-audit
             project: styio-audit
-          - repo: eBioRing/styio-platform
-            path: styio-platform
-            project: styio-platform
+          - repo: SymPolicy/styio-cloud
+            path: styio-cloud
+            project: styio-cloud
 
     steps:
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
-          repository: eBioRing/styio-audit
+          repository: SymPolicy/styio-audit
           ref: stable
           path: styio-audit
 
@@ -71,36 +71,36 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { repo: eBioRing/Styio, project: styio, ref: main }
-          - { repo: eBioRing/Styio, project: styio, ref: stable }
-          - { repo: eBioRing/Styio, project: styio, ref: nightly }
-          - { repo: eBioRing/Styio, project: styio, ref: ai-dev }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: main }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: stable }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: nightly }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: ai-dev }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: main }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: stable }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: nightly }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: ai-dev }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: main }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: stable }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: nightly }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: ai-dev }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: main }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: stable }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: nightly }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: ai-dev }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: main }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: stable }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: nightly }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: ai-dev }
+          - { repo: SymPolicy/Styio, project: styio, ref: main }
+          - { repo: SymPolicy/Styio, project: styio, ref: stable }
+          - { repo: SymPolicy/Styio, project: styio, ref: nightly }
+          - { repo: SymPolicy/Styio, project: styio, ref: ai-dev }
+          - { repo: SymPolicy/pafio, project: pafio, ref: main }
+          - { repo: SymPolicy/pafio, project: pafio, ref: stable }
+          - { repo: SymPolicy/pafio, project: pafio, ref: nightly }
+          - { repo: SymPolicy/pafio, project: pafio, ref: ai-dev }
+          - { repo: SymPolicy/vityo, project: vityo, ref: main }
+          - { repo: SymPolicy/vityo, project: vityo, ref: stable }
+          - { repo: SymPolicy/vityo, project: vityo, ref: nightly }
+          - { repo: SymPolicy/vityo, project: vityo, ref: ai-dev }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: main }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: stable }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: nightly }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: ai-dev }
+          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: main }
+          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: stable }
+          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: nightly }
+          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: ai-dev }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: main }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: stable }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: nightly }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: ai-dev }
 
     steps:
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
-          repository: eBioRing/styio-audit
+          repository: SymPolicy/styio-audit
           ref: stable
           path: styio-audit
 

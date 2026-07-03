@@ -44,7 +44,7 @@ Dependency manifest surfaces:
 - `.github/workflows/*.yml`.
 - `.devcontainer/devcontainer.json`, `.docker/docker-compose.yaml`.
 
-## styio-spio
+## pafio
 
 Technology stack:
 
@@ -57,10 +57,10 @@ Technology stack:
 
 Self-developed components:
 
-- `SpioManifest`, `SpioResolve`, and `SpioPlan` manifest/resolver/compile-plan graph.
-- `SpioRegistryClient` and `spio_registry_v2` registry materialization and trust layer.
-- `SpioToolchain` and `SpioTool` managed compiler/toolchain state.
-- `SpioCore` process handling and `SpioCloud` control-plane integration.
+- `PafioManifest`, `PafioResolve`, and `PafioPlan` manifest/resolver/compile-plan graph.
+- `PafioRegistryClient` and `pafio_registry_v2` registry materialization and trust layer.
+- `PafioToolchain` and `PafioTool` managed compiler/toolchain state.
+- `PafioCore` process handling and `PafioCloud` control-plane integration.
 - Native, interop, unit, docs, and delivery gate suites.
 - Registry v2 publish, verify, keygen, promote, and control-plane helper scripts.
 
@@ -79,7 +79,7 @@ Dependency manifest surfaces:
 - TOML support files and lockfiles where present.
 - `.github/workflows/*.yml`.
 
-## styio-view
+## vityo
 
 Technology stack:
 
@@ -122,7 +122,7 @@ Dependency manifest surfaces:
 - Android Gradle files.
 - `.github/workflows/*.yml`.
 
-## styio-platform
+## styio-cloud
 
 Technology stack:
 
@@ -188,7 +188,7 @@ Dependency manifest surfaces:
 
 - `pyproject.toml`.
 - `modules/default/module.json`.
-- `for-styio/module.json`, `for-styio-spio/module.json`, `for-styio-view/module.json`, `for-styio-platform/module.json`, `for-styio-audit/module.json`.
+- `for-styio/module.json`, `for-pafio/module.json`, `for-vityo/module.json`, `for-styio-cloud/module.json`, `for-styio-audit/module.json`.
 
 ## Audit Rule
 
