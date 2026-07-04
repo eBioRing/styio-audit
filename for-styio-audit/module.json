@@ -3,7 +3,7 @@
   "module_id": "for-styio-audit",
   "module_type": "project",
   "description": "Project module for the styio-audit framework, module descriptors, reports, and external gate policy.",
-  "last_updated": "2026-04-26",
+  "last_updated": "2026-07-04",
   "project_ids": ["styio-audit", "audit"],
   "technology_stack": [
     "Python 3.10+ audit CLI and framework library",
@@ -21,13 +21,13 @@
     "Sensitive-boundary gate for auth, privacy, password, key, secret-material, deployment-security, dependency-vulnerability, DAST, runtime-secret, rate-limit, log-redaction, SSRF, and command-execution controls",
     "Password, token, API key, private-key, client-secret, and access-key scanner",
     "Manifest inventory schema gate",
-    "eBioRing stable, nightly, and ai-dev branch existence gate",
+    "SymPolicy release, stable, and nightly branch existence gate",
     "Authoritative repository-local styio-audit workflow template and exact-match gate for upstream repositories",
     "Unka-Malloc downstream version-promotion pull request branch-flow gate",
     "Framework test suite and command wrapper",
     "Self-audit baseline workflow for all styio-audit branches",
     "Self-promotion gate workflow for nightly, stable, and main promotion gates",
-    "Ecosystem audit fan-out workflow for eBioRing styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
+    "Ecosystem audit fan-out workflow for SymPolicy styio, pafio, vityo, styio-cloud, and styio-audit delivery branches"
   ],
   "open_source_components": [
     "Python standard library",
@@ -38,14 +38,30 @@
     "pyproject.toml",
     "modules/default/module.json",
     "for-styio/module.json",
-    "for-styio-spio/module.json",
-    "for-styio-view/module.json",
-    "for-styio-platform/module.json",
+    "for-pafio/module.json",
+    "for-vityo/module.json",
+    "for-styio-cloud/module.json",
     "for-styio-audit/module.json",
     "templates/workflows/styio-audit-local.yml",
     ".github/workflows/self-audit-baseline.yml",
     ".github/workflows/self-promotion-gate.yml",
     ".github/workflows/ecosystem-audit.yml"
+  ],
+  "security_boundaries": [
+    "Authentication, authorization, and identity: styio-audit is a local and CI audit CLI; any future service wrapper must declare route authorization before release.",
+    "Privacy and PII: audit findings summarize evidence and must not copy personal data or large target-source payloads into reports.",
+    "Password handling: styio-audit does not store production passwords; password examples in tests must remain fake fixture material.",
+    "Secret, token, key, and credential material: production credentials must stay out of GitHub and out of generated reports.",
+    "Production private material is offline or not committed; .env files, private keys, generated key bundles, and deployable secret files are blocked by policy.",
+    "Permission matrix and RBAC route authorization must be documented before any hosted or control-plane surface is added.",
+    "Deployment security config, TLS, CORS, CSRF, and cookie boundaries are not part of the current CLI runtime; any hosted wrapper must add them before deployment.",
+    "SBOM, CVE, and dependency vulnerability scan evidence belongs in release gates for dependency changes.",
+    "DAST, black-box, penetration, and security regression evidence is required before exposing a hosted audit service.",
+    "Runtime secret manager, KMS, and key rotation own production secret delivery; the audit framework must not generate or commit runtime secrets.",
+    "Rate limit, anti replay, replay protection, nonce, and idempotency boundaries must be specified before network write APIs are introduced.",
+    "Log redaction, sensitive log handling, and audit log output must avoid leaking target secrets or private material.",
+    "SSRF, egress allowlist, URL allowlist, and outbound request boundaries must be defined before arbitrary remote fetch helpers are added.",
+    "Command execution uses subprocess allowlist review; shell injection surfaces and unchecked command strings are forbidden."
   ],
   "resource_classes": [
     {
@@ -77,11 +93,11 @@
     {
       "id": "styio_license_policy",
       "owner": "Audit Policy / License Governance",
-      "description": "Owns Apache-2.0 policy evidence for Styio-family repositories, source-distribution notice obligations, authoritative local audit workflow template governance, no-commercial-authorization dependency boundaries, eBioRing stable/nightly/ai-dev branch evidence, Unka-Malloc downstream version-promotion merge-flow boundaries, and sensitive security boundaries.",
+      "description": "Owns Apache-2.0 policy evidence for Styio-family repositories, source-distribution notice obligations, authoritative local audit workflow template governance, no-commercial-authorization dependency boundaries, SymPolicy release/stable/nightly branch evidence, Unka-Malloc downstream submission boundaries, and sensitive security boundaries.",
       "scope_globs": ["modules/default/module.json", "README.md", "docs/specs/**", "LICENSE", "LICENSE-POLICY.md", "DEPENDENCY-USAGE.md", "styio_audit/checks.py", "tests/test_framework.py"],
       "copying_policy": "License policy text must reference canonical Apache-2.0 identifiers and avoid copying target repository source into policy findings.",
       "concurrency_policy": "License policy changes must be updated in the default module and documentation in the same delivery.",
-      "nullability_policy": "Missing license files, missing metadata, missing source-distribution notices, missing authoritative local audit workflows, missing eBioRing stable/nightly/ai-dev branch evidence, invalid Unka-Malloc downstream merge flow, and missing sensitive security boundary evidence must fail as explicit audit findings.",
+      "nullability_policy": "Missing license files, missing metadata, missing source-distribution notices, missing authoritative local audit workflows, missing SymPolicy release/stable/nightly branch evidence, invalid Unka-Malloc downstream submission flow, and missing sensitive security boundary evidence must fail as explicit audit findings.",
       "cleanup_policy": "Retired license policy wording must be removed from docs and module descriptors together.",
       "state_machine": {
         "source": "Default module license_policy, README, spec docs, unit tests, and per-repo gate output.",
@@ -94,9 +110,9 @@
         ],
         "invalid_operations": ["accepting GPL or proprietary license metadata as the Styio-family policy", "skipping styio-audit itself", "allowing source or binary redistribution without Apache-2.0 notice preservation evidence", "treating a missing license file as a warning"]
       },
-      "required_tests": ["unit tests for passing Apache-2.0 evidence, conflicting license metadata, missing source-distribution notice, authoritative local audit workflow template matching, commercial-risk dependency boundaries, eBioRing stable/nightly/ai-dev branch evidence, Unka-Malloc downstream branch-flow enforcement, secret scanning, sensitive security boundary findings, and penetration-resilience hard controls"],
+      "required_tests": ["unit tests for passing Apache-2.0 evidence, conflicting license metadata, missing source-distribution notice, authoritative local audit workflow template matching, commercial-risk dependency boundaries, SymPolicy release/stable/nightly branch evidence, Unka-Malloc downstream submission-chain enforcement, secret scanning, sensitive security boundary findings, and penetration-resilience hard controls"],
       "required_gates": ["python3 -m styio_audit.cli gate --repo . --project styio-audit --framework-only"],
-      "audit_risks": ["license drift", "metadata conflict", "missing source-distribution notice obligation", "authoritative local audit workflow drift", "commercial authorization dependency drift", "missing eBioRing stable/nightly/ai-dev branch", "invalid Unka-Malloc downstream merge flow", "secret material leakage", "dangerous auth or crypto pattern drift", "missing deployment security evidence", "missing dependency vulnerability evidence", "missing DAST evidence", "missing rate-limit or replay evidence", "missing log-redaction evidence", "missing SSRF or egress evidence", "missing command-execution evidence", "incomplete project coverage"]
+      "audit_risks": ["license drift", "metadata conflict", "missing source-distribution notice obligation", "authoritative local audit workflow drift", "commercial authorization dependency drift", "missing SymPolicy release/stable/nightly branch", "invalid Unka-Malloc downstream submission flow", "secret material leakage", "dangerous auth or crypto pattern drift", "missing deployment security evidence", "missing dependency vulnerability evidence", "missing DAST evidence", "missing rate-limit or replay evidence", "missing log-redaction evidence", "missing SSRF or egress evidence", "missing command-execution evidence", "incomplete project coverage"]
     }
   ]
 }

@@ -34,38 +34,68 @@
     "Styio-family repositories must publish Apache-2.0 license evidence and source-distribution obligations.",
     "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
-    "eBioRing upstream repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
-    "eBioRing upstream repositories must carry a repository-local styio-audit workflow that exactly matches the authoritative template shipped by styio-audit.",
+    "SymPolicy upstream repositories must expose release, stable, and nightly branches before delivery can pass.",
+    "SymPolicy upstream repositories must carry a repository-local styio-audit workflow that exactly matches the authoritative template shipped by styio-audit.",
     "Styio compiler repositories must expose a local delivery framework whose CI, scheduler, workflow documents, and scheduler tests are externally auditable by styio-audit.",
-    "eBioRing upstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote through nightly before stable, require nightly to promote to stable, require stable to promote to main, and allow Unka-Malloc downstream nightly synchronization pull requests to target upstream nightly.",
-    "Unka-Malloc downstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote to nightly, require nightly to promote to stable, and require stable to promote to main.",
-    "AI agent temporary branches should target ai-dev first even when repository governance cannot hard-enforce branch naming.",
+    "SymPolicy upstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release; downstream temporary branches must first enter an upstream temporary branch before nightly, while downstream nightly may PR directly to upstream nightly.",
+    "Unka-Malloc downstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release.",
+    "AI agent temporary branches must target nightly first even when repository governance cannot hard-enforce branch naming.",
     "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history.",
     "Open-source repositories with server-deployment surfaces may publish standard auth, privacy, password-storage, and key-generation implementations only when secrets and production materials stay private and dangerous security patterns are blocked."
   ],
   "manifest_inventory_policy": {
     "enabled": true,
-    "required_fields": ["technology_stack", "internal_components", "open_source_components", "dependency_manifests"]
+    "required_fields": [
+      "technology_stack",
+      "internal_components",
+      "open_source_components",
+      "dependency_manifests"
+    ]
   },
   "branch_policy": {
     "enabled": true,
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit", "styio-community"],
-    "target_repository_owners": ["eBioRing"],
-    "required_branches": ["stable", "nightly", "ai-dev"]
+    "target_project_ids": [
+      "styio",
+      "vityo",
+      "pafio",
+      "styio-cloud"
+    ],
+    "target_repository_owners": [
+      "SymPolicy"
+    ],
+    "required_branches": [
+      "release",
+      "stable",
+      "nightly"
+    ]
   },
   "local_audit_workflow_policy": {
     "enabled": true,
     "name": "Authoritative styio-audit local workflow policy",
-    "target_project_ids": ["styio", "styio-spio", "styio-view", "styio-platform", "styio-community"],
-    "target_repository_owners": ["eBioRing"],
+    "target_project_ids": [
+      "styio",
+      "vityo",
+      "pafio",
+      "styio-cloud",
+      "styio-community"
+    ],
+    "target_repository_owners": [
+      "SymPolicy"
+    ],
     "workflow_path": ".github/workflows/styio-audit.yml",
     "template_path": "templates/workflows/styio-audit-local.yml"
   },
   "local_delivery_framework_policy": {
     "enabled": true,
     "name": "Styio compiler local delivery framework contract policy",
-    "target_project_ids": ["styio", "styio-nightly"],
-    "target_repository_owners": ["eBioRing"],
+    "target_project_ids": [
+      "styio",
+      "styio-nightly"
+    ],
+    "target_repository_owners": [
+      "SymPolicy",
+      "Unka-Malloc"
+    ],
     "required_files": [
       ".github/workflows/styio-ci-gate.yml",
       "scripts/workflow-scheduler.py",
@@ -130,88 +160,526 @@
   },
   "upstream_branch_flow_policy": {
     "enabled": true,
-    "target_repository_owners": ["eBioRing"],
-    "development_base_branches": ["ai-dev", "nightly"],
-    "downstream_repository_owners": ["Unka-Malloc"],
+    "target_project_ids": [
+      "styio",
+      "vityo",
+      "pafio",
+      "styio-cloud"
+    ],
+    "target_repository_owners": [
+      "SymPolicy"
+    ],
+    "downstream_repository_owners": [
+      "Unka-Malloc"
+    ],
+    "development_base_branches": [
+      "nightly"
+    ],
     "downstream_sync_pull_request_flows": [
-      {"head": "nightly", "base": "nightly"}
+      {
+        "head": "nightly",
+        "base": "nightly"
+      }
     ],
     "required_pull_request_flows": [
-      {"head": "ai-dev", "base": "nightly"},
-      {"head": "nightly", "base": "stable"},
-      {"head": "stable", "base": "main"}
+      {
+        "head": "nightly",
+        "base": "stable"
+      },
+      {
+        "head": "stable",
+        "base": "release"
+      }
     ]
   },
   "downstream_branch_flow_policy": {
     "enabled": true,
-    "target_repository_owners": ["Unka-Malloc"],
-    "development_base_branches": ["ai-dev", "nightly"],
+    "target_project_ids": [
+      "styio-nightly",
+      "vityo-nightly",
+      "pafio-nightly",
+      "styio-cloud-nightly"
+    ],
+    "target_repository_owners": [
+      "Unka-Malloc"
+    ],
+    "development_base_branches": [
+      "nightly"
+    ],
     "required_pull_request_flows": [
-      {"head": "ai-dev", "base": "nightly"},
-      {"head": "nightly", "base": "stable"},
-      {"head": "stable", "base": "main"}
+      {
+        "head": "nightly",
+        "base": "stable"
+      },
+      {
+        "head": "stable",
+        "base": "release"
+      }
     ]
   },
   "license_policy": {
     "enabled": true,
     "name": "Styio Apache-2.0 source license policy",
     "license_label": "Apache-2.0",
-    "spdx_identifiers": ["Apache-2.0"],
-    "license_text_markers": ["Apache License", "Version 2.0"],
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
-    "license_files": ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"],
-    "metadata_files": ["pyproject.toml", "package.json", "pubspec.yaml"],
-    "notice_files": ["LICENSE-POLICY.md", "NOTICE", "NOTICE.md", "README.md", "docs/LICENSE-POLICY.md"],
-    "required_notice_markers": ["Apache", "License", "Version 2.0"],
+    "spdx_identifiers": [
+      "Apache-2.0"
+    ],
+    "license_text_markers": [
+      "Apache License",
+      "Version 2.0"
+    ],
+    "target_project_ids": [
+      "styio",
+      "styio-nightly",
+      "vityo",
+      "vityo-nightly",
+      "pafio",
+      "pafio-nightly",
+      "styio-cloud",
+      "styio-cloud-nightly",
+      "styio-audit"
+    ],
+    "license_files": [
+      "LICENSE",
+      "LICENSE.md",
+      "LICENSE.txt",
+      "COPYING",
+      "COPYING.md",
+      "COPYING.txt"
+    ],
+    "metadata_files": [
+      "pyproject.toml",
+      "package.json",
+      "pubspec.yaml"
+    ],
+    "notice_files": [
+      "LICENSE-POLICY.md",
+      "NOTICE",
+      "NOTICE.md",
+      "README.md",
+      "docs/LICENSE-POLICY.md"
+    ],
+    "required_notice_markers": [
+      "Apache",
+      "License",
+      "Version 2.0"
+    ],
     "license_obligation": "Styio-family source code is licensed under Apache-2.0; downstream source-derived tools must preserve required license, copyright, NOTICE, modification, and patent-license notices when distributing covered source or binaries."
   },
   "commercial_risk_policy": {
     "enabled": true,
     "name": "Styio no-commercial-authorization dependency policy",
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
-    "manifest_globs": ["package.json", "**/package.json", "pyproject.toml", "**/pyproject.toml", "pubspec.yaml", "**/pubspec.yaml", "CMakeLists.txt", "**/CMakeLists.txt", "requirements*.txt", "**/requirements*.txt", "Cargo.toml", "**/Cargo.toml", "go.mod", "**/go.mod", "Package.swift", "**/Package.swift", "vcpkg.json", "**/vcpkg.json"],
-    "boundary_files": ["DEPENDENCY-USAGE.md", "THIRD-PARTY-NOTICES.md", "docs/DEPENDENCY-USAGE.md", "docs/dependencies.md", "docs/third-party.md"],
-    "required_boundary_markers": ["dependency|依赖", "commercial|商业", "authorization|授权", "usage boundary|使用边界|边界"],
-    "disallowed_manifest_terms": ["commercial license", "commercial authorization", "paid license", "subscription", "membership", "member-only", "trial license", "evaluation only", "proprietary", "商业授权", "商业许可证", "付费授权", "订阅", "会员制", "试用授权", "专有许可证"],
+    "target_project_ids": [
+      "styio",
+      "styio-nightly",
+      "vityo",
+      "vityo-nightly",
+      "pafio",
+      "pafio-nightly",
+      "styio-cloud",
+      "styio-cloud-nightly",
+      "styio-audit"
+    ],
+    "manifest_globs": [
+      "package.json",
+      "**/package.json",
+      "pyproject.toml",
+      "**/pyproject.toml",
+      "pubspec.yaml",
+      "**/pubspec.yaml",
+      "CMakeLists.txt",
+      "**/CMakeLists.txt",
+      "requirements*.txt",
+      "**/requirements*.txt",
+      "Cargo.toml",
+      "**/Cargo.toml",
+      "go.mod",
+      "**/go.mod",
+      "Package.swift",
+      "**/Package.swift",
+      "vcpkg.json",
+      "**/vcpkg.json"
+    ],
+    "boundary_files": [
+      "DEPENDENCY-USAGE.md",
+      "THIRD-PARTY-NOTICES.md",
+      "docs/DEPENDENCY-USAGE.md",
+      "docs/dependencies.md",
+      "docs/third-party.md"
+    ],
+    "required_boundary_markers": [
+      "dependency|依赖",
+      "commercial|商业",
+      "authorization|授权",
+      "usage boundary|使用边界|边界"
+    ],
+    "disallowed_manifest_terms": [
+      "commercial license",
+      "commercial authorization",
+      "paid license",
+      "subscription",
+      "membership",
+      "member-only",
+      "trial license",
+      "evaluation only",
+      "proprietary",
+      "商业授权",
+      "商业许可证",
+      "付费授权",
+      "订阅",
+      "会员制",
+      "试用授权",
+      "专有许可证"
+    ],
     "source_boundary": "All declared dependencies must have audit evidence showing no commercial authorization, subscription, membership, trial-only, or proprietary-use boundary is required."
   },
   "secret_scan_policy": {
     "enabled": true,
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
-    "secret_classes": ["password", "token", "api_key", "private_key", "client_secret", "access_key"],
-    "ignored_path_parts": [".git", ".dart_tool", ".pytest_cache", ".venv", "__pycache__", "build", "dist", "node_modules", "venv"],
+    "target_project_ids": [
+      "styio",
+      "styio-nightly",
+      "vityo",
+      "vityo-nightly",
+      "pafio",
+      "pafio-nightly",
+      "styio-cloud",
+      "styio-cloud-nightly",
+      "styio-audit"
+    ],
+    "secret_classes": [
+      "password",
+      "token",
+      "api_key",
+      "private_key",
+      "client_secret",
+      "access_key"
+    ],
+    "ignored_path_parts": [
+      ".git",
+      ".dart_tool",
+      ".pytest_cache",
+      ".venv",
+      "__pycache__",
+      "build",
+      "dist",
+      "node_modules",
+      "venv"
+    ],
     "max_file_bytes": 1048576,
     "history_scan_required": true,
     "history_scan_command": "python3 -m styio_audit.cli secret-history --repo /path/to/repo --project <project> --format json"
   },
+  "ip_exposure_policy": {
+    "enabled": true,
+    "target_project_ids": [
+      "*"
+    ],
+    "allow_loopback": true,
+    "ignored_path_parts": [
+      ".git",
+      ".dart_tool",
+      ".pytest_cache",
+      ".venv",
+      "__pycache__",
+      "build",
+      "dist",
+      "node_modules",
+      "venv"
+    ],
+    "max_file_bytes": 1048576,
+    "allowed_service_ip_occurrences": [
+      {
+        "service": "github-pages-apex-dns",
+        "reason": "GitHub Pages custom apex domains require DNS A/AAAA records pointing to the published GitHub Pages addresses unless the DNS provider supports ALIAS/ANAME flattening.",
+        "ips": [
+          "185.199.108.153",
+          "185.199.109.153",
+          "185.199.110.153",
+          "185.199.111.153",
+          "2606:50c0:8000::153",
+          "2606:50c0:8001::153",
+          "2606:50c0:8002::153",
+          "2606:50c0:8003::153"
+        ],
+        "path_globs": [
+          "docs/dns-and-pages.html",
+          "docs/**/dns-and-pages.html",
+          "modules/default/module.json"
+        ]
+      }
+    ]
+  },
   "server_sensitive_boundary_policy": {
     "enabled": true,
     "name": "Styio server-deployment sensitive security boundary policy",
-    "target_project_ids": ["styio", "styio-nightly", "styio-spio", "styio-view", "styio-platform", "styio-audit"],
-    "server_project_markers": ["server deployment|server-deployment|server-side|backend|服务端", "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control"],
-    "code_globs": ["*.py", "*.sh", "*.bash", "*.yml", "*.yaml", "CMakeLists.txt", "**/*.c", "**/*.cc", "**/*.cpp", "**/*.cxx", "**/*.h", "**/*.hh", "**/*.hpp", "**/*.py", "**/*.sh", "**/*.bash", "**/*.dart", "**/*.js", "**/*.ts", "**/*.go", "**/*.rs", "**/*.java", "**/*.kt", "**/*.swift", "**/*.yml", "**/*.yaml", "**/CMakeLists.txt"],
-    "ignored_path_parts": [".git", ".dart_tool", ".pytest_cache", ".venv", "__pycache__", "build", "build-codex", "dist", "node_modules", "venv"],
-    "restricted_material_globs": [".env", ".env.*", "**/.env", "**/.env.*", "**/*.p12", "**/*.pfx", "**/id_rsa", "**/id_ed25519", "**/private/*.key", "**/private/*.pem", "**/production/*.key", "**/production/*.pem", "**/*prod*secret*.json", "**/*production*secret*.json"],
-    "allowed_material_name_markers": ["example", "sample", "template", "test", "fixture", "fake", "dummy", "placeholder", "public"],
-    "required_manifest_markers": ["auth|authentication|authorization|identity|鉴权", "privacy|pii|personal data|隐私", "password|密码", "secret|token|key|credential|密钥", "production|offline|private material|not committed|不进仓库|离线", "permission matrix|route authorization|rbac|role based access|权限矩阵", "deployment security|deployment config|tls|cors|csrf|cookie|部署安全", "sbom|cve|dependency vulnerability|vulnerability scan|依赖漏洞", "dast|black-box|penetration|security regression|渗透", "runtime secret|secret manager|kms|key rotation|密钥轮换", "rate limit|anti replay|replay protection|nonce|idempotency|限流|重放", "log redaction|sensitive log|audit log|日志脱敏", "ssrf|egress allowlist|url allowlist|outbound request|出站", "command execution|shell injection|subprocess allowlist|命令执行"],
+    "target_project_ids": [
+      "styio",
+      "styio-nightly",
+      "vityo",
+      "vityo-nightly",
+      "pafio",
+      "pafio-nightly",
+      "styio-cloud",
+      "styio-cloud-nightly",
+      "styio-audit"
+    ],
+    "server_project_markers": [
+      "server deployment|server-deployment|server-side|backend|服务端",
+      "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control"
+    ],
+    "code_globs": [
+      "*.py",
+      "*.sh",
+      "*.bash",
+      "*.yml",
+      "*.yaml",
+      "CMakeLists.txt",
+      "**/*.c",
+      "**/*.cc",
+      "**/*.cpp",
+      "**/*.cxx",
+      "**/*.h",
+      "**/*.hh",
+      "**/*.hpp",
+      "**/*.py",
+      "**/*.sh",
+      "**/*.bash",
+      "**/*.dart",
+      "**/*.js",
+      "**/*.ts",
+      "**/*.go",
+      "**/*.rs",
+      "**/*.java",
+      "**/*.kt",
+      "**/*.swift",
+      "**/*.yml",
+      "**/*.yaml",
+      "**/CMakeLists.txt"
+    ],
+    "ignored_code_globs": [
+      "styio_audit/checks.py",
+      "tests/test_framework.py"
+    ],
+    "ignored_path_parts": [
+      ".git",
+      ".dart_tool",
+      ".pytest_cache",
+      ".venv",
+      "__pycache__",
+      "build",
+      "build-codex",
+      "dist",
+      "node_modules",
+      "venv"
+    ],
+    "restricted_material_globs": [
+      ".env",
+      ".env.*",
+      "**/.env",
+      "**/.env.*",
+      "**/*.p12",
+      "**/*.pfx",
+      "**/id_rsa",
+      "**/id_ed25519",
+      "**/private/*.key",
+      "**/private/*.pem",
+      "**/production/*.key",
+      "**/production/*.pem",
+      "**/*prod*secret*.json",
+      "**/*production*secret*.json"
+    ],
+    "allowed_material_name_markers": [
+      "example",
+      "sample",
+      "template",
+      "test",
+      "fixture",
+      "fake",
+      "dummy",
+      "placeholder",
+      "public"
+    ],
+    "required_manifest_markers": [
+      "auth|authentication|authorization|identity|鉴权",
+      "privacy|pii|personal data|隐私",
+      "password|密码",
+      "secret|token|key|credential|密钥",
+      "production|offline|private material|not committed|不进仓库|离线",
+      "permission matrix|route authorization|rbac|role based access|权限矩阵",
+      "deployment security|deployment config|tls|cors|csrf|cookie|部署安全",
+      "sbom|cve|dependency vulnerability|vulnerability scan|依赖漏洞",
+      "dast|black-box|penetration|security regression|渗透",
+      "runtime secret|secret manager|kms|key rotation|密钥轮换",
+      "rate limit|anti replay|replay protection|nonce|idempotency|限流|重放",
+      "log redaction|sensitive log|audit log|日志脱敏",
+      "ssrf|egress allowlist|url allowlist|outbound request|出站",
+      "command execution|shell injection|subprocess allowlist|命令执行"
+    ],
     "disallowed_code_categories": {
-      "auth_bypass_toggle": ["allow_anonymous=true", "allow_anonymous = true", "skip_auth=true", "skip_auth = true", "auth_disabled=true", "auth_disabled = true", "disable_auth=true", "disable_auth = true"],
-      "command_injection_surface": ["shell=true", "shell = true", "os.system("],
-      "custom_crypto": ["custom crypto", "custom cryptography", "homegrown crypto", "roll your own crypto", "proprietary cipher", "xor cipher"],
-      "csrf_disabled": ["csrf=false", "csrf = false", "csrf_disabled=true", "csrf_disabled = true", "csrf_exempt", "disable_csrf=true", "disable_csrf = true"],
-      "cors_wildcard": ["access-control-allow-origin: *", "access_control_allow_origin = '*'", "access_control_allow_origin='*'", "allow_origins=['*']", "allow_origins = ['*']", "allow_origins=[\"*\"]", "allow_origins = [\"*\"]"],
-      "jwt_none_algorithm": ["\"alg\":\"none\"", "\"alg\": \"none\"", "'alg':'none'", "'alg': 'none'", "alg=none", "algorithm none"],
-      "disabled_verification": ["verify_signature=false", "verify_signature = false", "\"verify_signature\": false", "'verify_signature': false", "rejectunauthorized: false", "ssl_verify=false", "ssl_verify = false", "tls_verify=false", "tls_verify = false", "--no-check-certificate"],
-      "default_credential": ["admin:admin", "password=password", "password = password", "default_password", "default_admin_password"],
-      "debug_public_exposure": ["app.run(debug=true", "app.run(debug = true", "flask_debug=1", "flask_debug = 1", "django_debug=true", "django_debug = true"],
-      "insecure_cookie": ["httponly=false", "httponly = false", "http_only=false", "http_only = false", "secure=false", "secure = false", "cookie_secure=false", "cookie_secure = false"],
-      "insecure_random_secret": ["random.random secret", "random.random token", "random.random password", "math.random secret", "math.random token", "math.random password"],
-      "rate_limit_disabled": ["rate_limit=false", "rate_limit = false", "rate_limit=0", "rate_limit = 0", "disable_rate_limit=true", "disable_rate_limit = true"],
-      "ssrf_unrestricted_fetch": ["requests.get(url", "requests.post(url", "requests.put(url", "requests.delete(url", "urllib.request.urlopen(url", "fetch(url"],
-      "weak_password_hash": ["hashlib.md5(password", "hashlib.sha1(password", "md5 password", "sha1 password", "password md5", "password sha1"],
-      "plaintext_password_storage": ["plain text password", "plaintext password", "cleartext password", "store password as plain text", "store passwords as plain text", "password stored in plain text"]
+      "auth_bypass_toggle": [
+        "allow_anonymous=true",
+        "allow_anonymous = true",
+        "skip_auth=true",
+        "skip_auth = true",
+        "auth_disabled=true",
+        "auth_disabled = true",
+        "disable_auth=true",
+        "disable_auth = true"
+      ],
+      "command_injection_surface": [
+        "shell=true",
+        "shell = true",
+        "os.system("
+      ],
+      "custom_crypto": [
+        "custom crypto",
+        "custom cryptography",
+        "homegrown crypto",
+        "roll your own crypto",
+        "proprietary cipher",
+        "xor cipher"
+      ],
+      "csrf_disabled": [
+        "csrf=false",
+        "csrf = false",
+        "csrf_disabled=true",
+        "csrf_disabled = true",
+        "csrf_exempt",
+        "disable_csrf=true",
+        "disable_csrf = true"
+      ],
+      "cors_wildcard": [
+        "access-control-allow-origin: *",
+        "access_control_allow_origin = '*'",
+        "access_control_allow_origin='*'",
+        "allow_origins=['*']",
+        "allow_origins = ['*']",
+        "allow_origins=[\"*\"]",
+        "allow_origins = [\"*\"]"
+      ],
+      "jwt_none_algorithm": [
+        "\"alg\":\"none\"",
+        "\"alg\": \"none\"",
+        "'alg':'none'",
+        "'alg': 'none'",
+        "alg=none",
+        "algorithm none"
+      ],
+      "disabled_verification": [
+        "verify_signature=false",
+        "verify_signature = false",
+        "\"verify_signature\": false",
+        "'verify_signature': false",
+        "rejectunauthorized: false",
+        "ssl_verify=false",
+        "ssl_verify = false",
+        "tls_verify=false",
+        "tls_verify = false",
+        "--no-check-certificate"
+      ],
+      "default_credential": [
+        "admin:admin",
+        "password=password",
+        "password = password",
+        "default_password",
+        "default_admin_password"
+      ],
+      "debug_public_exposure": [
+        "app.run(debug=true",
+        "app.run(debug = true",
+        "flask_debug=1",
+        "flask_debug = 1",
+        "django_debug=true",
+        "django_debug = true"
+      ],
+      "insecure_cookie": [
+        "httponly=false",
+        "httponly = false",
+        "http_only=false",
+        "http_only = false",
+        "secure=false",
+        "secure = false",
+        "cookie_secure=false",
+        "cookie_secure = false"
+      ],
+      "insecure_random_secret": [
+        "random.random secret",
+        "random.random token",
+        "random.random password",
+        "math.random secret",
+        "math.random token",
+        "math.random password"
+      ],
+      "rate_limit_disabled": [
+        "rate_limit=false",
+        "rate_limit = false",
+        "rate_limit=0",
+        "rate_limit = 0",
+        "disable_rate_limit=true",
+        "disable_rate_limit = true"
+      ],
+      "ssrf_unrestricted_fetch": [
+        "requests.get(url",
+        "requests.post(url",
+        "requests.put(url",
+        "requests.delete(url",
+        "urllib.request.urlopen(url",
+        "fetch(url"
+      ],
+      "weak_password_hash": [
+        "hashlib.md5(password",
+        "hashlib.sha1(password",
+        "md5 password",
+        "sha1 password",
+        "password md5",
+        "password sha1"
+      ],
+      "plaintext_password_storage": [
+        "plain text password",
+        "plaintext password",
+        "cleartext password",
+        "store password as plain text",
+        "store passwords as plain text",
+        "password stored in plain text"
+      ]
     },
     "max_file_bytes": 1048576,
     "source_boundary": "Open-source repositories that expose server deployment surfaces may publish standard protocol and algorithm implementation code. They must not publish production credentials, private keys, tokens, .env files, generated secret bundles, custom cryptography, auth bypass toggles, disabled verification, wildcard CORS, disabled CSRF, insecure cookies, weak password hashing, insecure random secret generation, plaintext password handling, command-injection surfaces, unrestricted SSRF-prone fetches, default credentials, public debug exposure, disabled rate limits, or undocumented auth/privacy/password/key/deployment/permission/vulnerability/DAST/runtime-secret/rate-limit/log-redaction/egress/command-execution boundaries."
+  },
+  "better_plan_policy": {
+    "enabled": true,
+    "plan_root": "docs/plan",
+    "target_project_ids": [
+      "styio",
+      "styio-nightly",
+      "vityo",
+      "vityo-nightly",
+      "pafio",
+      "pafio-nightly",
+      "styio-cloud",
+      "styio-cloud-nightly"
+    ],
+    "target_repository_owners": [
+      "SymPolicy",
+      "Unka-Malloc"
+    ],
+    "required_roles": [
+      "product_requirements",
+      "evidence",
+      "validation_matrix",
+      "architecture_scaffold",
+      "implementation",
+      "final_validation"
+    ],
+    "forbidden_planning_roots": [
+      "docs/plans",
+      "docs/planning",
+      "docs/milestones"
+    ],
+    "forbidden_text_markers": [
+      "docs/plans",
+      "docs/planning",
+      "docs/milestones"
+    ]
   }
 }

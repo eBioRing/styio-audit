@@ -182,7 +182,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     gate_cmd = sub.add_parser("gate", help="Run default and project-specific modules against a target repo.")
     gate_cmd.add_argument("--repo", required=True, help="Target repository root to audit.")
-    gate_cmd.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    gate_cmd.add_argument("--project", required=True, help="Project id, such as styio, pafio, or vityo.")
     gate_cmd.add_argument("--framework-only", action="store_true", help="Skip active defect-record closure checks.")
     gate_cmd.add_argument(
         "--skip-branch-governance",
@@ -194,7 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = sub.add_parser("report", help="Generate a structured external audit report for a target repo.")
     report.add_argument("--repo", required=True, help="Target repository root to audit.")
-    report.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    report.add_argument("--project", required=True, help="Project id, such as styio, pafio, or vityo.")
     report.add_argument("--output", help="Write the rendered report to a file. Relative paths are resolved under the target repository.")
     report.add_argument("--framework-only", action="store_true", help="Skip active defect-record closure checks.")
     report.add_argument(
@@ -216,7 +216,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Render or verify the authoritative repository-local styio-audit workflow for one target repository.",
     )
     sync_local.add_argument("--repo", required=True, help="Target repository root that owns `.github/workflows/styio-audit.yml`.")
-    sync_local.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    sync_local.add_argument("--project", required=True, help="Project id, such as styio, pafio, or vityo.")
     sync_local.add_argument("--repo-name", help="Override the repository name placeholder; defaults to the target directory name.")
     sync_local.add_argument(
         "--framework-ref",
@@ -231,7 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
         "sync-upstream-local-workflows",
         help="Render or verify authoritative repository-local styio-audit workflows for all managed upstream repositories under one workspace root.",
     )
-    sync_upstream.add_argument("--workspace-root", required=True, help="Workspace root that contains managed upstream repositories, such as /home/unka/eBioRing.")
+    sync_upstream.add_argument("--workspace-root", required=True, help="Workspace root that contains managed upstream repositories, such as /workspace/SymPolicy.")
     sync_upstream.add_argument(
         "--framework-ref",
         default=DEFAULT_FRAMEWORK_REF,

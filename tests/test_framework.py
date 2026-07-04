@@ -41,6 +41,21 @@ class FrameworkTests(unittest.TestCase):
     def _set_origin(self, root: Path, url: str) -> None:
         subprocess.run(["git", "remote", "add", "origin", url], cwd=root, check=True, text=True, capture_output=True)
 
+    def _write_pull_request_event(self, root: Path, *, head_owner: str, base_owner: str) -> Path:
+        event_path = root / "event.json"
+        event_path.write_text(
+            json.dumps(
+                {
+                    "pull_request": {
+                        "head": {"repo": {"owner": {"login": head_owner}}},
+                        "base": {"repo": {"owner": {"login": base_owner}}},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        return event_path
+
     def _write_branch_policy_default_module(self, framework_root: Path) -> None:
         self._write_json(
             framework_root,
@@ -57,7 +72,7 @@ class FrameworkTests(unittest.TestCase):
                 "branch_policy": {
                     "enabled": True,
                     "target_project_ids": ["demo"],
-                    "required_branches": ["stable", "nightly", "ai-dev"],
+                    "required_branches": ["release", "stable", "nightly"],
                 },
             },
         )
@@ -78,11 +93,10 @@ class FrameworkTests(unittest.TestCase):
                 "downstream_branch_flow_policy": {
                     "enabled": True,
                     "target_repository_owners": ["Unka-Malloc"],
-                    "development_base_branches": ["ai-dev", "nightly"],
+                    "development_base_branches": ["nightly"],
                     "required_pull_request_flows": [
-                        {"head": "ai-dev", "base": "nightly"},
                         {"head": "nightly", "base": "stable"},
-                        {"head": "stable", "base": "main"},
+                        {"head": "stable", "base": "release"},
                     ],
                 },
             },
@@ -103,16 +117,98 @@ class FrameworkTests(unittest.TestCase):
                 "required_checklist_markers": ["marker"],
                 "upstream_branch_flow_policy": {
                     "enabled": True,
-                    "target_repository_owners": ["eBioRing"],
-                    "development_base_branches": ["ai-dev", "nightly"],
+                    "target_repository_owners": ["SymPolicy"],
+                    "downstream_repository_owners": ["Unka-Malloc"],
+                    "development_base_branches": ["nightly"],
+                    "downstream_sync_pull_request_flows": [
+                        {"head": "nightly", "base": "nightly"},
+                    ],
                     "required_pull_request_flows": [
-                        {"head": "ai-dev", "base": "nightly"},
                         {"head": "nightly", "base": "stable"},
-                        {"head": "stable", "base": "main"},
+                        {"head": "stable", "base": "release"},
                     ],
                 },
             },
         )
+
+    def _write_better_plan_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-07-04",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+                "better_plan_policy": {
+                    "enabled": True,
+                    "plan_root": "docs/plan",
+                    "target_project_ids": ["demo"],
+                    "target_repository_owners": ["SymPolicy"],
+                    "required_roles": [
+                        "product_requirements",
+                        "evidence",
+                        "validation_matrix",
+                        "architecture_scaffold",
+                        "implementation",
+                        "final_validation",
+                    ],
+                    "forbidden_planning_roots": ["docs/plans", "docs/planning", "docs/milestones"],
+                    "forbidden_text_markers": ["docs/plans", "docs/planning", "docs/milestones"],
+                },
+            },
+        )
+
+    def _write_better_plan_workspace(self, repo_root: Path) -> None:
+        self._write_json(
+            repo_root,
+            "docs/plan/Manifest.json",
+            [
+                {
+                    "id": "plan-1",
+                    "status": "in_progress",
+                    "title": "Demo Plan",
+                    "directory": "demo-plan",
+                    "source_files": ["docs/plan/demo-plan/Requirements.md"],
+                    "goal": "Keep demo planning in docs/plan.",
+                    "description": "Demo Better Plan workspace.",
+                    "checkpoints": "demo-plan/Checkpoints.json",
+                }
+            ],
+        )
+        roles = [
+            "product_requirements",
+            "evidence",
+            "validation_matrix",
+            "architecture_scaffold",
+            "implementation",
+            "final_validation",
+        ]
+        self._write_json(
+            repo_root,
+            "docs/plan/demo-plan/Checkpoints.json",
+            [
+                {
+                    "id": f"node-{index}",
+                    "status": "in_progress" if role == "implementation" else "pending",
+                    "role": role,
+                    "prerequisites": [],
+                    "platform": "windows",
+                    "difficulty": "deep" if role in {"product_requirements", "evidence", "validation_matrix"} else "high",
+                    "goal": f"Demo {role}.",
+                    "description": f"Scope: demo {role}. Context: demo.",
+                    "acceptance_criteria": [{"checked": False, "text": f"Demo {role} criterion."}],
+                    "commit": {"repository": ".git", "message": f"Demo {role}", "target": "docs/plan"},
+                    "next": [],
+                }
+                for index, role in enumerate(roles)
+            ],
+        )
+        self._write_file(repo_root, "docs/plan/demo-plan/Requirements.md", "# Requirements\n")
 
     def _write_demo_project_module(self, framework_root: Path) -> None:
         self._write_json(
@@ -178,7 +274,7 @@ class FrameworkTests(unittest.TestCase):
             "      - name: Checkout released styio-audit policy\n"
             "        uses: actions/checkout@v5\n"
             "        with:\n"
-            "          repository: eBioRing/styio-audit\n"
+            "          repository: SymPolicy/styio-audit\n"
             "          ref: stable\n"
             "          path: styio-audit\n"
             "      - name: Run released styio-audit gate\n"
@@ -203,7 +299,7 @@ class FrameworkTests(unittest.TestCase):
                     "enabled": True,
                     "name": "Authoritative local workflow policy.",
                     "target_project_ids": ["demo"],
-                    "target_repository_owners": ["eBioRing"],
+                    "target_repository_owners": ["SymPolicy"],
                     "workflow_path": ".github/workflows/styio-audit.yml",
                     "template_path": "templates/workflows/styio-audit-local.yml",
                 },
@@ -227,7 +323,7 @@ class FrameworkTests(unittest.TestCase):
                     "enabled": True,
                     "name": "Local delivery framework contract.",
                     "target_project_ids": ["demo"],
-                    "target_repository_owners": ["eBioRing"],
+                    "target_repository_owners": ["SymPolicy"],
                     "required_files": [
                         ".github/workflows/styio-ci-gate.yml",
                         "scripts/workflow-scheduler.py",
@@ -309,6 +405,7 @@ class FrameworkTests(unittest.TestCase):
                     "target_project_ids": ["demo"],
                     "server_project_markers": ["server|service|deployment"],
                     "code_globs": ["**/*.py"],
+                    "ignored_code_globs": ["tools/audit_fixture.py"],
                     "ignored_path_parts": [".git", "__pycache__"],
                     "restricted_material_globs": [".env", "**/.env", "**/private/*.pem", "**/production/*.key"],
                     "allowed_material_name_markers": ["example", "test", "fixture", "fake"],
@@ -367,11 +464,11 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual([], [finding.message for finding in findings])
 
     def test_project_stack_loads_default_and_project_module(self) -> None:
-        stack = load_stack(ROOT, "styio-spio", Path("/tmp/styio-spio"))
+        stack = load_stack(ROOT, "pafio", Path("/tmp/pafio"))
         module_ids = [module.module_id for module in stack]
         self.assertIn("default", module_ids)
-        self.assertIn("for-styio-spio", module_ids)
-        self.assertNotIn("for-styio-view", module_ids)
+        self.assertIn("for-pafio", module_ids)
+        self.assertNotIn("for-vityo", module_ids)
 
     def test_schema_validation_rejects_invalid_module_type(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -638,7 +735,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_branch_policy_default_module(framework_root)
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root, branches=["stable", "nightly", "ai-dev"])
+            self._init_git_repo(repo_root, branches=["release", "stable", "nightly"])
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
@@ -651,7 +748,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_branch_policy_default_module(framework_root)
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root, branches=["stable", "ai-dev"])
+            self._init_git_repo(repo_root, branches=["release", "stable"])
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing required branch `nightly`" in message for message in messages))
@@ -664,7 +761,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_branch_policy_default_module(framework_root)
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root, branches=["stable", "ai-dev"])
+            self._init_git_repo(repo_root, branches=["release", "stable"])
 
             skipped = self._run_demo_gate(framework_root, repo_root, skip_branch_governance=True)
             self.assertEqual([], [finding.message for finding in skipped])
@@ -689,8 +786,8 @@ class FrameworkTests(unittest.TestCase):
                     "branch_policy": {
                         "enabled": True,
                         "target_project_ids": ["demo"],
-                        "target_repository_owners": ["eBioRing"],
-                        "required_branches": ["stable", "nightly", "ai-dev"],
+                        "target_repository_owners": ["SymPolicy"],
+                        "required_branches": ["release", "stable", "nightly"],
                     },
                 },
             )
@@ -735,7 +832,7 @@ class FrameworkTests(unittest.TestCase):
                 "      - name: Checkout released styio-audit policy\n"
                 "        uses: actions/checkout@v5\n"
                 "        with:\n"
-                "          repository: eBioRing/styio-audit\n"
+                "          repository: SymPolicy/styio-audit\n"
                 "          ref: stable\n"
                 "          path: styio-audit\n"
                 "      - name: Run released styio-audit gate\n"
@@ -743,7 +840,7 @@ class FrameworkTests(unittest.TestCase):
                 "        run: python3 ../styio-audit/bin/styio-audit gate --repo . --project demo\n",
             )
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
@@ -758,7 +855,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing `.github/workflows/styio-audit.yml`" in message for message in messages))
@@ -781,7 +878,7 @@ class FrameworkTests(unittest.TestCase):
                 "  workflow_dispatch:\n",
             )
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("does not match authoritative template" in message for message in messages))
@@ -796,7 +893,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._write_local_delivery_framework_files(repo_root)
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
@@ -811,7 +908,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._write_file(repo_root, "scripts/workflow-scheduler.py", "WORKFLOW_DOCS = ()\nPROFILES = ()\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing required file `.github/workflows/styio-ci-gate.yml`" in message for message in messages))
@@ -831,12 +928,39 @@ class FrameworkTests(unittest.TestCase):
             )
             self._write_file(repo_root, "scripts/workflow-scheduler.py", "WORKFLOW_DOCS = ()\nPROFILES = ()\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing required marker `workflow-scheduler.py run --profile ci-prebuild`" in message for message in messages))
 
-    def test_downstream_branch_flow_allows_feature_to_ai_dev(self) -> None:
+    def test_better_plan_policy_accepts_docs_plan_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_better_plan_default_module(framework_root)
+            self._write_better_plan_workspace(repo_root)
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+
+            findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_better_plan_policy_rejects_old_planning_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_better_plan_default_module(framework_root)
+            self._write_better_plan_workspace(repo_root)
+            self._write_file(repo_root, "docs/plans/old-plan.md", "# Old Plan\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("non-current planning root remains at `docs/plans`" in message for message in messages))
+
+    def test_downstream_branch_flow_rejects_feature_to_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -849,12 +973,12 @@ class FrameworkTests(unittest.TestCase):
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "ai-dev",
+                "GITHUB_BASE_REF": "release",
                 "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
-                findings = self._run_demo_gate(framework_root, repo_root)
-            self.assertEqual([], [finding.message for finding in findings])
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("`release` only accepts pull requests from `stable`" in message for message in messages))
 
     def test_downstream_branch_flow_allows_version_promotion_chain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -867,7 +991,7 @@ class FrameworkTests(unittest.TestCase):
             self._init_git_repo(repo_root)
             self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
 
-            for head, base in (("ai-dev", "nightly"), ("nightly", "stable"), ("stable", "main")):
+            for head, base in (("nightly", "stable"), ("stable", "release")):
                 env = {
                     "GITHUB_EVENT_NAME": "pull_request",
                     "GITHUB_BASE_REF": base,
@@ -931,13 +1055,13 @@ class FrameworkTests(unittest.TestCase):
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
                 "GITHUB_BASE_REF": "stable",
-                "GITHUB_HEAD_REF": "ai-dev",
+                "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`ai-dev` can only merge into `nightly`, not `stable`" in message for message in messages))
+            self.assertTrue(any("`stable` only accepts pull requests from `nightly`" in message for message in messages))
 
-    def test_downstream_branch_flow_rejects_feature_to_main(self) -> None:
+    def test_downstream_branch_flow_rejects_nightly_to_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -950,12 +1074,12 @@ class FrameworkTests(unittest.TestCase):
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "main",
-                "GITHUB_HEAD_REF": "feature/demo",
+                "GITHUB_BASE_REF": "release",
+                "GITHUB_HEAD_REF": "nightly",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`main` only accepts pull requests from `stable`" in message for message in messages))
+            self.assertTrue(any("`nightly` can only merge into `stable`, not `release`" in message for message in messages))
 
     def test_upstream_branch_flow_accepts_feature_to_integration_targets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -966,19 +1090,18 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
-            for base in ("ai-dev", "nightly"):
-                env = {
-                    "GITHUB_EVENT_NAME": "pull_request",
-                    "GITHUB_BASE_REF": base,
-                    "GITHUB_HEAD_REF": "feature/demo",
-                }
-                with patch.dict(os.environ, env, clear=False):
-                    findings = self._run_demo_gate(framework_root, repo_root)
-                self.assertEqual([], [finding.message for finding in findings])
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "feature/demo",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
 
-    def test_upstream_branch_flow_allows_downstream_nightly_sync_to_nightly(self) -> None:
+    def test_upstream_branch_flow_allows_downstream_feature_to_upstream_temporary_branch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -987,19 +1110,30 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
-            event_path = Path(tmp) / "event.json"
-            event_path.write_text(
-                json.dumps(
-                    {
-                        "pull_request": {
-                            "head": {"repo": {"owner": {"login": "Unka-Malloc"}}},
-                            "base": {"repo": {"owner": {"login": "eBioRing"}}},
-                        }
-                    }
-                ),
-                encoding="utf-8",
-            )
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="Unka-Malloc", base_owner="SymPolicy")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "codex/downstream-staging",
+                "GITHUB_HEAD_REF": "feature/demo",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_upstream_branch_flow_allows_downstream_nightly_to_upstream_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="Unka-Malloc", base_owner="SymPolicy")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
@@ -1011,6 +1145,28 @@ class FrameworkTests(unittest.TestCase):
                 findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
 
+    def test_upstream_branch_flow_rejects_downstream_feature_direct_to_upstream_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="Unka-Malloc", base_owner="SymPolicy")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "feature/demo",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("downstream `feature/demo` must target an upstream temporary branch before `nightly`" in message for message in messages))
+
     def test_upstream_branch_flow_rejects_internal_nightly_to_nightly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
@@ -1020,19 +1176,8 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
-            event_path = Path(tmp) / "event.json"
-            event_path.write_text(
-                json.dumps(
-                    {
-                        "pull_request": {
-                            "head": {"repo": {"owner": {"login": "eBioRing"}}},
-                            "base": {"repo": {"owner": {"login": "eBioRing"}}},
-                        }
-                    }
-                ),
-                encoding="utf-8",
-            )
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="SymPolicy", base_owner="SymPolicy")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
@@ -1044,7 +1189,7 @@ class FrameworkTests(unittest.TestCase):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("`nightly` can only merge into `stable`, not `nightly`" in message for message in messages))
 
-    def test_upstream_branch_flow_rejects_ai_dev_to_stable(self) -> None:
+    def test_upstream_branch_flow_rejects_feature_to_stable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -1053,18 +1198,18 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
                 "GITHUB_BASE_REF": "stable",
-                "GITHUB_HEAD_REF": "ai-dev",
+                "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`ai-dev` can only merge into `nightly`, not `stable`" in message for message in messages))
+            self.assertTrue(any("`stable` only accepts pull requests from `nightly`" in message for message in messages))
 
-    def test_upstream_branch_flow_rejects_feature_to_main(self) -> None:
+    def test_upstream_branch_flow_rejects_feature_to_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -1073,16 +1218,16 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "main",
+                "GITHUB_BASE_REF": "release",
                 "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`main` only accepts pull requests from `stable`" in message for message in messages))
+            self.assertTrue(any("`release` only accepts pull requests from `stable`" in message for message in messages))
 
     def test_skip_branch_governance_suppresses_upstream_flow_findings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1093,11 +1238,11 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "main",
+                "GITHUB_BASE_REF": "release",
                 "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
@@ -1254,6 +1399,13 @@ class FrameworkTests(unittest.TestCase):
                 "    return argon2.hash(value)\n\n"
                 "def generate_key_directory(path):\n"
                 "    return path\n",
+            )
+            self._write_file(
+                repo_root,
+                "tools/audit_fixture.py",
+                "allow_anonymous=True\n"
+                "shell=True\n"
+                "requests.get(url)\n",
             )
 
             findings = self._run_demo_gate(framework_root, repo_root)
@@ -1487,6 +1639,159 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual("github-token", findings[0].rule_id)
         self.assertTrue(findings[0].fingerprint.startswith("sha256:"))
         self.assertNotIn(token, findings[0].to_dict().values())
+
+    def test_ip_exposure_policy_allows_loopback_and_rejects_other_ips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            public_ip = "203.0" + ".113.9"
+            unspecified_ipv6 = "[" + "::" + "]"
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                        "max_file_bytes": 1048576,
+                    },
+                },
+            )
+            self._write_file(
+                repo_root,
+                "README.md",
+                "Local examples may use http://127.0.0.1:8080 and http://[::1]:8080.\n"
+                f"External service address {public_ip} must not be committed.\n",
+            )
+            self._write_file(repo_root, "nginx.conf", f"listen {unspecified_ipv6}:80;\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any(public_ip in message for message in messages))
+            self.assertTrue(any("nginx.conf" in message and "::" in message for message in messages))
+            self.assertFalse(any("127.0.0.1" in message for message in messages))
+            self.assertFalse(any("::1" in message for message in messages))
+
+    def test_ip_exposure_policy_scopes_github_pages_dns_allowlist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            pages_ipv4 = "185.199.108" + ".153"
+            pages_ipv6 = "2606:50c0:8000:" + ":153"
+            unrelated_ip = "8.8" + ".8.8"
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                        "allowed_service_ip_occurrences": [
+                            {
+                                "service": "github-pages-apex-dns",
+                                "reason": "GitHub Pages apex DNS records.",
+                                "ips": [pages_ipv4, pages_ipv6],
+                                "path_globs": ["docs/dns-and-pages.html"],
+                            }
+                        ],
+                    },
+                },
+            )
+            self._write_file(
+                repo_root,
+                "docs/dns-and-pages.html",
+                f"GitHub Pages apex A {pages_ipv4} and AAAA {pages_ipv6} are documented here.\n"
+                f"Unrelated DNS {unrelated_ip} still fails.\n",
+            )
+            self._write_file(repo_root, "src/app.txt", f"Hard-coded GitHub Pages IP {pages_ipv4} outside DNS docs.\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any(unrelated_ip in message and "docs/dns-and-pages.html" in message for message in messages))
+            self.assertTrue(any(pages_ipv4 in message and "src/app.txt" in message for message in messages))
+            self.assertFalse(any(pages_ipv6 in message for message in messages))
+
+    def test_ip_exposure_policy_ignores_svg_path_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                    },
+                },
+            )
+            svg_decimal_run = "1.9" + ".95.95"
+            self._write_file(
+                repo_root,
+                "src/Icon.tsx",
+                f'export const Icon = () => <path d="M8 1.8a6.2 6.2 0 1 0 0 12.4A6.2 6.2 0 0 0 8 1.8zm0 6a.95.95 0 1 0 0 {svg_decimal_run} 0 0 0 0-1.9z" />;\n',
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertFalse(any(svg_decimal_run in message for message in messages))
+
+    def test_ip_exposure_policy_ignores_language_namespace_separator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "ip_exposure_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["demo"],
+                        "allow_loopback": True,
+                    },
+                },
+            )
+            namespace_separator = ":" + ":"
+            self._write_file(repo_root, "src/main.cpp", f'unit_id += "{namespace_separator}";\n')
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertFalse(any("src/main.cpp" in message for message in messages))
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ The audited repository does not provide an audit interface. `styio-audit` reads 
 
 ## Execution Contract
 
-Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for managed delivery branches, check out `eBioRing/styio-audit` from `stable`, execute that checkout's `bin/styio-audit` entrypoint directly against the target repository, and report the repository-local check name `styio-audit`. eBioRing upstream checks must also fetch the target repository's `stable`, `nightly`, and `ai-dev` branch evidence before running the gate. The authoritative repository-local workflow template is stored in [../templates/workflows/styio-audit-local.yml](../../templates/workflows/styio-audit-local.yml), and upstream repository-local workflows must match that template after rendering repository/project placeholders.
+Each Styio-family repository must own a dedicated `styio-audit` GitHub Actions workflow. The workflow must run on pull requests, pushes, and manual dispatch for managed delivery branches, check out `SymPolicy/styio-audit` from `stable`, execute that checkout's `bin/styio-audit` entrypoint directly against the target repository, and report the repository-local check name `styio-audit`. SymPolicy upstream checks must also fetch the target repository's `release`, `stable`, and `nightly` branch evidence before running the gate. The authoritative repository-local workflow template is stored in [../templates/workflows/styio-audit-local.yml](../../templates/workflows/styio-audit-local.yml), and upstream repository-local workflows must match that template after rendering repository/project placeholders.
 
 For maintenance automation, `styio-audit` provides repository-local workflow sync commands:
 
@@ -33,16 +33,16 @@ External audit and repository-local quality gates are separate layers. Repositor
 
 `styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/self-audit-baseline.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for all branches. It validates module schema, unit tests, and the `styio-audit` self gate with branch-governance checks disabled, so temporary branches still receive documentation, schema, and security coverage. `.github/workflows/self-promotion-gate.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for `nightly`, `stable`, and `main`. It validates the same framework plus branch-governance checks. `self-promotion-gate` is the self-promotion status check that should be required for `styio-audit` promotion into protected promotion branches.
 
-`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
+`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, and `nightly`, plus manual dispatch. That fan-out workflow checks out `SymPolicy/styio-audit@stable` as the released audit-policy source, then checks out configured SymPolicy target repository branches and applies that released audit framework to `styio`, `pafio`, `vityo`, `styio-cloud`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
 Detailed branch roles, promotion paths, downstream submission rules, and live GitHub Ruleset expectations are maintained in [BRANCH-GOVERNANCE.md](BRANCH-GOVERNANCE.md). This framework document references that policy and keeps only the framework-facing constraints:
 
-1. Every upstream eBioRing repository in scope must expose `stable`, `nightly`, and `ai-dev` branch evidence.
+1. Every upstream SymPolicy repository in scope must expose `release`, `stable`, and `nightly` branch evidence.
 2. `styio-audit` must run `self-audit-baseline` on every branch so writable branches always produce current audit evidence.
 3. `styio-audit` must require `self-promotion-gate` for promotion into `nightly`, `stable`, and `main`.
 4. `ecosystem-audit` must remain visible but must not block `styio-audit` self-promotion.
-5. Downstream repositories must run repository-local `styio-audit` workflows for their own pull-request and protected-branch delivery.
-6. Upstream eBioRing repositories must keep `.github/workflows/styio-audit.yml` identical to the authoritative template rendered from `templates/workflows/styio-audit-local.yml`, and `styio-audit gate` must fail if that file drifts.
+5. Downstream repositories must run repository-local `styio-audit` workflows for their own pull-request and protected-branch delivery. Downstream temporary branches must enter an upstream temporary branch before promotion to upstream `nightly`; downstream `nightly` may directly target upstream `nightly`.
+6. Upstream SymPolicy repositories must keep `.github/workflows/styio-audit.yml` identical to the authoritative template rendered from `templates/workflows/styio-audit-local.yml`, and `styio-audit gate` must fail if that file drifts.
 
 Audit execution must record both the audit framework commit SHA and the target repository commit SHA in the workflow log. CI must not rely on a `styio-audit` binary found on `PATH`, because that can be older than the repository policy.
 
@@ -72,8 +72,8 @@ The manifest inventory fields are blocking audit inputs. If a project module doe
 
 1. Module schema.
 2. Required project manifest inventory lists.
-3. Required `stable`, `nightly`, and `ai-dev` branch evidence from local or remote-tracking git refs for eBioRing upstream repositories.
-4. Upstream and downstream pull request merge-flow boundaries, including the rule that temporary branches may target only `ai-dev` or `nightly`.
+3. Required `release`, `stable`, and `nightly` branch evidence from local or remote-tracking git refs for SymPolicy upstream repositories.
+4. Upstream and downstream pull request merge-flow boundaries, including the rule that temporary branches target `nightly`, downstream temporary branches first target an upstream temporary branch, and downstream `nightly` may synchronize directly to upstream `nightly`.
 5. Repository-local `styio-audit.yml` workflow conformance to the released authoritative template.
 6. Styio compiler local delivery-framework contract files and scheduler markers.
 7. Resource-class state machines.
@@ -89,7 +89,7 @@ Gate failure is based on audit quality. Passing application tests is not enough 
 
 ## License And Commercial-Risk Policy
 
-The default module applies source-license and commercial-risk gates to `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+The default module applies source-license and commercial-risk gates to `styio`, `styio-nightly`, `pafio`, `vityo`, `styio-cloud`, and `styio-audit`.
 
 License checks require:
 
@@ -133,7 +133,7 @@ The gate still hard-fails unsafe code and source artifacts: deployable secret ma
 The default module scans current worktrees for passwords, tokens, API keys, private keys, client secrets, and access keys. It also provides the `secret-history` command for full git-history scans over all reachable commits:
 
 ```bash
-python3 -m styio_audit.cli secret-history --repo /path/to/repo --project styio-spio --format json
+python3 -m styio_audit.cli secret-history --repo /path/to/repo --project pafio --format json
 ```
 
 Secret findings are intentionally redacted. Reports include rule id, class, file path, line number, value length, fingerprint, and first/last commit for history scans, but never include the suspected secret value.

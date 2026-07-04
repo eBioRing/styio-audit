@@ -10,9 +10,9 @@
 
 - `modules/default/` contains the default common audit module.
 - `for-styio/` contains compiler/runtime/parser/IDE/LSP audit resources.
-- `for-styio-spio/` contains package, registry, resolver, toolchain, process, and control-plane audit resources.
-- `for-styio-view/` contains Flutter workspace, adapter, module, runtime, and platform audit resources.
-- `for-styio-platform/` contains cloud service, native contract, registry distribution, regional node, and delivery-gate audit resources.
+- `for-pafio/` contains package, registry, resolver, toolchain, process, and control-plane audit resources.
+- `for-vityo/` contains Flutter workspace, adapter, module, runtime, and platform audit resources.
+- `for-styio-cloud/` contains cloud service, native contract, registry distribution, regional node, and delivery-gate audit resources.
 - `for-styio-audit/` contains audit-framework, report, license-policy, and dependency-risk audit resources.
 - `for-.../` directories can be added for future repositories without changing the core loader.
 
@@ -23,9 +23,9 @@ Each module is loaded from `module.json`. A module can also define `checks.py` w
 ```sh
 python3 -m styio_audit.cli list-modules
 python3 -m styio_audit.cli validate-modules
-python3 -m styio_audit.cli gate --repo /path/to/repo --project styio-spio
-python3 -m styio_audit.cli report --repo /path/to/repo --project styio-spio --output audit-report.json
-python3 -m styio_audit.cli secret-history --repo /path/to/repo --project styio-spio --format json
+python3 -m styio_audit.cli gate --repo /path/to/repo --project pafio
+python3 -m styio_audit.cli report --repo /path/to/repo --project pafio --output audit-report.json
+python3 -m styio_audit.cli secret-history --repo /path/to/repo --project pafio --format json
 ```
 
 Use `--framework-only` to validate module structure and target scope globs without requiring active audit defects to be closed.
@@ -34,34 +34,34 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 ## Cross-Repo Execution
 
-Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for managed delivery branches. That workflow checks out `eBioRing/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
+Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for managed delivery branches. That workflow checks out `SymPolicy/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
-This repository owns two separate workflows:
+This repository owns three separate workflows:
 
 - `.github/workflows/self-audit-baseline.yml` validates `styio-audit` on every branch. It keeps module, documentation, schema, and security checks active on temporary branches while skipping branch-governance enforcement.
 - `.github/workflows/self-promotion-gate.yml` validates `styio-audit` for `nightly`, `stable`, and `main` promotion. This is the workflow that should be required for `styio-audit` promotion into protected promotion branches.
-- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then checks out the configured eBioRing Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
+- `.github/workflows/ecosystem-audit.yml` is an upstream SymPolicy ecosystem patrol. On pushes to `main`, `stable`, and `nightly`, plus manual dispatch, it checks out `SymPolicy/styio-audit@stable` as the released policy source, then checks out the configured SymPolicy Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `pafio`, `vityo`, `styio-cloud`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
 
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
 
-The authoritative repository-local audit workflow template is stored in [templates/workflows/styio-audit-local.yml](templates/workflows/styio-audit-local.yml). Upstream eBioRing repositories must keep their `.github/workflows/styio-audit.yml` file identical to that template after rendering repository and project placeholders. That template reports the repository-local required check name `styio-audit`, and `styio-audit gate` validates the exact workflow match during submission.
+The authoritative repository-local audit workflow template is stored in [templates/workflows/styio-audit-local.yml](templates/workflows/styio-audit-local.yml). Upstream SymPolicy repositories must keep their `.github/workflows/styio-audit.yml` file identical to that template after rendering repository and project placeholders. That template reports the repository-local required check name `styio-audit`, and `styio-audit gate` validates the exact workflow match during submission.
 
 For compiler repositories, `styio-audit` also audits the local delivery-framework contract. The target repository still owns its build, test, parser, runtime, and documentation checks, but the external gate verifies that the local CI entrypoint, workflow scheduler, delivery gate, syntax workflow documents, and scheduler tests remain present and wired through the registered scheduler. This prevents a repository from silently bypassing or replacing its quality framework while still leaving implementation-specific checks inside that repository.
 
 To align repository-local workflows with the released external standard, sync them from `styio-audit@origin/stable`:
 
 ```sh
-python3 -m styio_audit.cli sync-local-workflow --repo /home/unka/eBioRing/styio --project styio --framework-ref origin/stable
-python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /home/unka/eBioRing --framework-ref origin/stable
-python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /home/unka/eBioRing --framework-ref origin/stable --check
-./scripts/sync-upstream-local-workflows.sh --workspace-root /home/unka/eBioRing --framework-ref origin/stable
+python3 -m styio_audit.cli sync-local-workflow --repo /workspace/SymPolicy/styio --project styio --framework-ref origin/stable
+python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /workspace/SymPolicy --framework-ref origin/stable
+python3 -m styio_audit.cli sync-upstream-local-workflows --workspace-root /workspace/SymPolicy --framework-ref origin/stable --check
+./scripts/sync-upstream-local-workflows.sh --workspace-root /workspace/SymPolicy --framework-ref origin/stable
 ```
 
-Use `--framework-ref HEAD` only when preparing an unreleased workflow-template change on `ai-dev`; protected-branch delivery should continue to consume the released `origin/stable` template.
+Use `--framework-ref HEAD` only when preparing an unreleased workflow-template change on a temporary branch; protected-branch delivery should continue to consume the released `origin/stable` template.
 
-Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for `ai-dev` and protected release/default branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
+Required status checks are governed through GitHub Rulesets, not legacy classic branch protection. Maintainers must inspect effective branch rules for temporary branches and protected delivery branches, such as `GET /repos/{owner}/{repo}/rules/branches/{branch}`, when auditing delivery gates. The legacy `branches/{branch}/protection/required_status_checks` endpoint is not authoritative for Styio delivery governance and can return 404 when the Ruleset gate is correctly active.
 
-Branch-flow and Ruleset details are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md). In summary: temporary branches and `ai-dev` are writable audit lanes, while `nightly`, `stable`, and `main` are pull-request-only promotion gates that require `self-promotion-gate`. `ecosystem-audit` failures remain ecosystem findings and must not be used as `styio-audit` self-promotion blockers.
+Branch-flow and Ruleset details are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md). In summary: temporary branches are writable audit lanes, while product `nightly`, `stable`, and `release` branches are pull-request-only promotion gates that require repository-local `styio-audit`. `styio-audit` itself keeps `main` for framework self-promotion, where `self-promotion-gate` remains the required check. `ecosystem-audit` failures remain ecosystem findings and must not be used as `styio-audit` self-promotion blockers.
 
 ## Project Mapping
 
@@ -71,15 +71,15 @@ Examples:
 
 ```sh
 python3 -m styio_audit.cli gate --repo ../styio-nightly --project styio
-python3 -m styio_audit.cli gate --repo ../styio-spio --project styio-spio
-python3 -m styio_audit.cli gate --repo ../styio-view --project styio-view
-python3 -m styio_audit.cli gate --repo ../styio-platform --project styio-platform
+python3 -m styio_audit.cli gate --repo ../pafio --project pafio
+python3 -m styio_audit.cli gate --repo ../vityo --project vityo
+python3 -m styio_audit.cli gate --repo ../styio-cloud --project styio-cloud
 python3 -m styio_audit.cli gate --repo . --project styio-audit
 ```
 
 ## Default Policy Gates
 
-The default module applies repository-wide policy gates to all Styio-family projects: `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+The default module applies repository-wide policy gates to all Styio-family projects: `styio`, `styio-nightly`, `pafio`, `vityo`, `styio-cloud`, and `styio-audit`.
 
 Manifest inventory policy:
 
@@ -89,7 +89,7 @@ Manifest inventory policy:
 
 Branch policy:
 
-- Every eBioRing upstream repository in audit scope must expose `stable`, `nightly`, and `ai-dev` branches.
+- Every SymPolicy upstream repository in audit scope must expose `release`, `stable`, and `nightly` branches.
 - The gate accepts either local `refs/heads/<branch>` refs or remote-tracking `refs/remotes/*/<branch>` refs in the target checkout.
 - Missing any required delivery branch is a delivery blocker for upstream repositories because audit, CI, and cross-repository handoff rules must have stable release, nightly, and integration lanes.
 - The detailed promotion model and protected-branch policy are maintained in [BRANCH-GOVERNANCE.md](docs/specs/BRANCH-GOVERNANCE.md).
