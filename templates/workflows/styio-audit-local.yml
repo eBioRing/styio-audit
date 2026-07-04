@@ -39,7 +39,7 @@ jobs:
       - name: Fetch managed branch evidence
         working-directory: {{REPO_NAME}}
         run: |
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
 

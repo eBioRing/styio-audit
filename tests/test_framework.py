@@ -41,6 +41,21 @@ class FrameworkTests(unittest.TestCase):
     def _set_origin(self, root: Path, url: str) -> None:
         subprocess.run(["git", "remote", "add", "origin", url], cwd=root, check=True, text=True, capture_output=True)
 
+    def _write_pull_request_event(self, root: Path, *, head_owner: str, base_owner: str) -> Path:
+        event_path = root / "event.json"
+        event_path.write_text(
+            json.dumps(
+                {
+                    "pull_request": {
+                        "head": {"repo": {"owner": {"login": head_owner}}},
+                        "base": {"repo": {"owner": {"login": base_owner}}},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        return event_path
+
     def _write_branch_policy_default_module(self, framework_root: Path) -> None:
         self._write_json(
             framework_root,
@@ -103,7 +118,11 @@ class FrameworkTests(unittest.TestCase):
                 "upstream_branch_flow_policy": {
                     "enabled": True,
                     "target_repository_owners": ["SymPolicy"],
+                    "downstream_repository_owners": ["Unka-Malloc"],
                     "development_base_branches": ["nightly"],
+                    "downstream_sync_pull_request_flows": [
+                        {"head": "nightly", "base": "nightly"},
+                    ],
                     "required_pull_request_flows": [
                         {"head": "nightly", "base": "stable"},
                         {"head": "stable", "base": "release"},
@@ -1080,6 +1099,94 @@ class FrameworkTests(unittest.TestCase):
             with patch.dict(os.environ, env, clear=False):
                 findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
+
+    def test_upstream_branch_flow_allows_downstream_feature_to_upstream_temporary_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="Unka-Malloc", base_owner="SymPolicy")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "codex/downstream-staging",
+                "GITHUB_HEAD_REF": "feature/demo",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_upstream_branch_flow_allows_downstream_nightly_to_upstream_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="Unka-Malloc", base_owner="SymPolicy")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "nightly",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
+
+    def test_upstream_branch_flow_rejects_downstream_feature_direct_to_upstream_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="Unka-Malloc", base_owner="SymPolicy")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "feature/demo",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("downstream `feature/demo` must target an upstream temporary branch before `nightly`" in message for message in messages))
+
+    def test_upstream_branch_flow_rejects_internal_nightly_to_nightly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_upstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
+            event_path = self._write_pull_request_event(Path(tmp), head_owner="SymPolicy", base_owner="SymPolicy")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "nightly",
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("`nightly` can only merge into `stable`, not `nightly`" in message for message in messages))
 
     def test_upstream_branch_flow_rejects_feature_to_stable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

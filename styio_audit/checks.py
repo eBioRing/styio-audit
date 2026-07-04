@@ -38,6 +38,10 @@ DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
     {"head": "nightly", "base": "stable"},
     {"head": "stable", "base": "release"},
 ]
+DEFAULT_UPSTREAM_DOWNSTREAM_REPOSITORY_OWNERS = ["Unka-Malloc"]
+DEFAULT_UPSTREAM_DOWNSTREAM_SYNC_PULL_REQUEST_FLOWS = [
+    {"head": "nightly", "base": "nightly"},
+]
 DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
 DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["nightly"]
 DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
@@ -597,33 +601,37 @@ def validate_pull_request_flow_policy(
     findings: list[AuditFinding] = []
     if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
         findings.append(finding(f"module {policy_name}.enabled must be a boolean", module_id))
-    for key in ("target_project_ids", "target_repository_owners", "development_base_branches"):
+    for key in ("target_project_ids", "target_repository_owners", "development_base_branches", "downstream_repository_owners"):
         values, key_findings = get_optional_string_list(policy, key, f"module {policy_name}", module_id)
         findings.extend(key_findings)
         if values and len(values) != len(unique_strings(values)):
             findings.append(finding(f"module {policy_name} `{key}` entries must be unique", module_id))
-    raw_flows = policy.get("required_pull_request_flows", default_required_pull_request_flows)
-    if not isinstance(raw_flows, list) or not raw_flows:
-        findings.append(finding(f"module {policy_name}.required_pull_request_flows must be a non-empty list", module_id))
-    else:
+    flow_groups = (
+        ("required_pull_request_flows", policy.get("required_pull_request_flows", default_required_pull_request_flows), True),
+        ("downstream_sync_pull_request_flows", policy.get("downstream_sync_pull_request_flows", []), False),
+    )
+    for flow_key, raw_flows, required in flow_groups:
+        if not isinstance(raw_flows, list) or (required and not raw_flows):
+            findings.append(finding(f"module {policy_name}.{flow_key} must be a non-empty list", module_id))
+            continue
         seen_heads: set[str] = set()
         for index, item in enumerate(raw_flows):
             if not isinstance(item, dict):
-                findings.append(finding(f"module {policy_name}.required_pull_request_flows[{index}] must be an object", module_id))
+                findings.append(finding(f"module {policy_name}.{flow_key}[{index}] must be an object", module_id))
                 continue
             for key in ("head", "base"):
                 value = item.get(key)
                 if not isinstance(value, str) or not value.strip():
                     findings.append(
                         finding(
-                            f"module {policy_name}.required_pull_request_flows[{index}].{key} must be a non-empty string",
+                            f"module {policy_name}.{flow_key}[{index}].{key} must be a non-empty string",
                             module_id,
                         )
                     )
             head = item.get("head")
             if isinstance(head, str) and head.strip():
                 if head in seen_heads:
-                    findings.append(finding(f"module {policy_name} required flow for `{head}` must be unique", module_id))
+                    findings.append(finding(f"module {policy_name} {flow_key} flow for `{head}` must be unique", module_id))
                 seen_heads.add(head)
     development_base_branches = policy.get("development_base_branches", default_development_base_branches)
     if not isinstance(development_base_branches, list) or not development_base_branches:
@@ -1212,6 +1220,30 @@ def policy_branch_flows(policy: dict[str, Any], key: str, default: list[dict[str
         if isinstance(head, str) and head.strip() and isinstance(base, str) and base.strip():
             result[head.strip()] = base.strip()
     return result
+
+
+def github_pull_request_repo_owners() -> tuple[str | None, str | None]:
+    event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+    if not event_path:
+        return None, None
+    try:
+        with Path(event_path).open("r", encoding="utf-8") as handle:
+            event = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    pull_request = event.get("pull_request")
+    if not isinstance(pull_request, dict):
+        return None, None
+
+    def owner_login(side: str) -> str | None:
+        data: Any = pull_request
+        for key in (side, "repo", "owner", "login"):
+            if not isinstance(data, dict):
+                return None
+            data = data.get(key)
+        return data if isinstance(data, str) and data.strip() else None
+
+    return owner_login("head"), owner_login("base")
 
 
 def policy_marker_map(policy: dict[str, Any], key: str) -> dict[str, list[str]]:
@@ -2073,6 +2105,8 @@ def check_pull_request_flow_policy(
     default_target_repository_owners: list[str],
     default_development_base_branches: list[str],
     default_required_pull_request_flows: list[dict[str, str]],
+    default_downstream_repository_owners: list[str] | None = None,
+    default_downstream_sync_pull_request_flows: list[dict[str, str]] | None = None,
 ) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -2094,6 +2128,7 @@ def check_pull_request_flow_policy(
     target_project_ids = set(policy_strings(policy, "target_project_ids", []))
     if target_project_ids and (context.project is None or context.project not in target_project_ids):
         return []
+    downstream_repository_owners = set(policy_strings(policy, "downstream_repository_owners", default_downstream_repository_owners or []))
 
     event_name = os.environ.get("GITHUB_EVENT_NAME", "")
     base_ref = os.environ.get("GITHUB_BASE_REF", "")
@@ -2105,6 +2140,11 @@ def check_pull_request_flow_policy(
         required_heads_by_base.setdefault(base, []).append(head)
     allowed_base_branches = development_base_branches | set(required_heads_by_base)
     reserved_branches = set(required_flows) | set(required_heads_by_base) | development_base_branches
+    downstream_sync_flows = policy_branch_flows(
+        policy,
+        "downstream_sync_pull_request_flows",
+        default_downstream_sync_pull_request_flows or [],
+    )
 
     findings: list[AuditFinding] = []
     if event_name in {"pull_request", "pull_request_target"} or base_ref or head_ref:
@@ -2115,6 +2155,26 @@ def check_pull_request_flow_policy(
                     default.module_id,
                 )
             ]
+        head_owner, base_owner = github_pull_request_repo_owners()
+        is_downstream_to_upstream = (
+            head_owner in downstream_repository_owners
+            and base_owner in target_repository_owners
+            and head_owner != base_owner
+        )
+        if is_downstream_to_upstream:
+            expected_sync_base = downstream_sync_flows.get(head_ref)
+            if expected_sync_base == base_ref:
+                return []
+            if base_ref not in reserved_branches:
+                return []
+            findings.append(
+                finding(
+                    f"{label}: downstream `{head_ref}` must target an upstream temporary branch before `{base_ref}`; "
+                    "only downstream `nightly` may target upstream `nightly` directly",
+                    default.module_id,
+                )
+            )
+            return findings
         if allowed_base_branches and base_ref not in allowed_base_branches:
             findings.append(
                 finding(
@@ -2158,6 +2218,8 @@ def check_upstream_branch_flow_policy(context: AuditContext) -> list[AuditFindin
         DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS,
         DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES,
         DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS,
+        DEFAULT_UPSTREAM_DOWNSTREAM_REPOSITORY_OWNERS,
+        DEFAULT_UPSTREAM_DOWNSTREAM_SYNC_PULL_REQUEST_FLOWS,
     )
 
 

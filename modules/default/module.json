@@ -37,7 +37,7 @@
     "SymPolicy upstream repositories must expose release, stable, and nightly branches before delivery can pass.",
     "SymPolicy upstream repositories must carry a repository-local styio-audit workflow that exactly matches the authoritative template shipped by styio-audit.",
     "Styio compiler repositories must expose a local delivery framework whose CI, scheduler, workflow documents, and scheduler tests are externally auditable by styio-audit.",
-    "SymPolicy upstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release.",
+    "SymPolicy upstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release; downstream temporary branches must first enter an upstream temporary branch before nightly, while downstream nightly may PR directly to upstream nightly.",
     "Unka-Malloc downstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release.",
     "AI agent temporary branches must target nightly first even when repository governance cannot hard-enforce branch naming.",
     "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history.",
@@ -169,8 +169,17 @@
     "target_repository_owners": [
       "SymPolicy"
     ],
+    "downstream_repository_owners": [
+      "Unka-Malloc"
+    ],
     "development_base_branches": [
       "nightly"
+    ],
+    "downstream_sync_pull_request_flows": [
+      {
+        "head": "nightly",
+        "base": "nightly"
+      }
     ],
     "required_pull_request_flows": [
       {
