@@ -25,7 +25,7 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "open_source_components",
     "dependency_manifests",
 ]
-DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
+DEFAULT_REQUIRED_BRANCHES = ["release", "stable", "nightly"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "pafio", "vityo", "styio-cloud", "styio-community"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["SymPolicy"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH = ".github/workflows/styio-audit.yml"
@@ -33,18 +33,16 @@ DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH = "templates/workflows/styio-audit-local.yml"
 DEFAULT_LOCAL_DELIVERY_FRAMEWORK_PROJECT_IDS = ["styio", "styio-nightly"]
 DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS = ["SymPolicy"]
 DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["SymPolicy"]
-DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
+DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["nightly"]
 DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
-    {"head": "ai-dev", "base": "nightly"},
     {"head": "nightly", "base": "stable"},
-    {"head": "stable", "base": "main"},
+    {"head": "stable", "base": "release"},
 ]
 DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
-DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
+DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["nightly"]
 DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
-    {"head": "ai-dev", "base": "nightly"},
     {"head": "nightly", "base": "stable"},
-    {"head": "stable", "base": "main"},
+    {"head": "stable", "base": "release"},
 ]
 DEFAULT_BETTER_PLAN_PROJECT_IDS = [
     "styio",
@@ -599,7 +597,7 @@ def validate_pull_request_flow_policy(
     findings: list[AuditFinding] = []
     if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
         findings.append(finding(f"module {policy_name}.enabled must be a boolean", module_id))
-    for key in ("target_repository_owners", "development_base_branches"):
+    for key in ("target_project_ids", "target_repository_owners", "development_base_branches"):
         values, key_findings = get_optional_string_list(policy, key, f"module {policy_name}", module_id)
         findings.extend(key_findings)
         if values and len(values) != len(unique_strings(values)):
@@ -2092,6 +2090,9 @@ def check_pull_request_flow_policy(
     if owner is None:
         return [finding(f"{label}: {error}; repository owner cannot be verified", default.module_id)]
     if target_repository_owners and owner not in target_repository_owners:
+        return []
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    if target_project_ids and (context.project is None or context.project not in target_project_ids):
         return []
 
     event_name = os.environ.get("GITHUB_EVENT_NAME", "")

@@ -6,7 +6,6 @@ on:
       - main
       - stable
       - nightly
-      - ai-dev
   workflow_dispatch:
 
 permissions:
@@ -42,7 +41,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: ${{ matrix.target.repo }}
-          ref: ai-dev
+          ref: nightly
           fetch-depth: 0
           path: ${{ matrix.target.path }}
 
@@ -55,7 +54,7 @@ jobs:
         run: |
           git -C styio-audit rev-parse HEAD
           git -C "${{ matrix.target.path }}" rev-parse HEAD
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git -C "${{ matrix.target.path }}" fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
           python3 styio-audit/bin/styio-audit gate \
@@ -71,30 +70,21 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { repo: SymPolicy/Styio, project: styio, ref: main }
+          - { repo: SymPolicy/Styio, project: styio, ref: release }
           - { repo: SymPolicy/Styio, project: styio, ref: stable }
           - { repo: SymPolicy/Styio, project: styio, ref: nightly }
-          - { repo: SymPolicy/Styio, project: styio, ref: ai-dev }
-          - { repo: SymPolicy/pafio, project: pafio, ref: main }
-          - { repo: SymPolicy/pafio, project: pafio, ref: stable }
-          - { repo: SymPolicy/pafio, project: pafio, ref: nightly }
-          - { repo: SymPolicy/pafio, project: pafio, ref: ai-dev }
-          - { repo: SymPolicy/vityo, project: vityo, ref: main }
-          - { repo: SymPolicy/vityo, project: vityo, ref: stable }
-          - { repo: SymPolicy/vityo, project: vityo, ref: nightly }
-          - { repo: SymPolicy/vityo, project: vityo, ref: ai-dev }
+          - { repo: SymPolicy/Pafio, project: pafio, ref: release }
+          - { repo: SymPolicy/Pafio, project: pafio, ref: stable }
+          - { repo: SymPolicy/Pafio, project: pafio, ref: nightly }
+          - { repo: SymPolicy/Vityo, project: vityo, ref: release }
+          - { repo: SymPolicy/Vityo, project: vityo, ref: stable }
+          - { repo: SymPolicy/Vityo, project: vityo, ref: nightly }
           - { repo: SymPolicy/styio-audit, project: styio-audit, ref: main }
           - { repo: SymPolicy/styio-audit, project: styio-audit, ref: stable }
           - { repo: SymPolicy/styio-audit, project: styio-audit, ref: nightly }
-          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: ai-dev }
-          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: main }
-          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: stable }
-          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: nightly }
-          - { repo: SymPolicy/styio-cloud, project: styio-cloud, ref: ai-dev }
-          - { repo: SymPolicy/styio-community, project: styio-community, ref: main }
-          - { repo: SymPolicy/styio-community, project: styio-community, ref: stable }
-          - { repo: SymPolicy/styio-community, project: styio-community, ref: nightly }
-          - { repo: SymPolicy/styio-community, project: styio-community, ref: ai-dev }
+          - { repo: SymPolicy/Styio-Cloud, project: styio-cloud, ref: release }
+          - { repo: SymPolicy/Styio-Cloud, project: styio-cloud, ref: stable }
+          - { repo: SymPolicy/Styio-Cloud, project: styio-cloud, ref: nightly }
 
     steps:
       - name: Checkout released styio-audit policy
@@ -121,7 +111,7 @@ jobs:
         run: |
           git -C styio-audit rev-parse HEAD
           git -C target rev-parse HEAD
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git -C target fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
           python3 styio-audit/bin/styio-audit gate \

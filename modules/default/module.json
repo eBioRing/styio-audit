@@ -34,12 +34,12 @@
     "Styio-family repositories must publish Apache-2.0 license evidence and source-distribution obligations.",
     "Styio-family repositories must reject dependencies that require commercial authorization, subscription, or membership-gated access.",
     "Every project module manifest must list its technology stack, internal components, open-source components, and dependency manifests.",
-    "SymPolicy upstream repositories must expose stable, nightly, and ai-dev branches before delivery can pass.",
+    "SymPolicy upstream repositories must expose release, stable, and nightly branches before delivery can pass.",
     "SymPolicy upstream repositories must carry a repository-local styio-audit workflow that exactly matches the authoritative template shipped by styio-audit.",
     "Styio compiler repositories must expose a local delivery framework whose CI, scheduler, workflow documents, and scheduler tests are externally auditable by styio-audit.",
-    "SymPolicy upstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote through nightly before stable, require nightly to promote to stable, and require stable to promote to main.",
-    "Unka-Malloc downstream repositories must allow temporary branches to target ai-dev or nightly, require ai-dev to promote to nightly, require nightly to promote to stable, and require stable to promote to main.",
-    "AI agent temporary branches should target ai-dev first even when repository governance cannot hard-enforce branch naming.",
+    "SymPolicy upstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release.",
+    "Unka-Malloc downstream repositories must allow temporary branches to target nightly only, require nightly to promote to stable, and require stable to promote to release.",
+    "AI agent temporary branches must target nightly first even when repository governance cannot hard-enforce branch naming.",
     "Styio-family repositories must not contain passwords, tokens, API keys, private keys, client secrets, or access keys in tracked source or git history.",
     "Open-source repositories with server-deployment surfaces may publish standard auth, privacy, password-storage, and key-generation implementations only when secrets and production materials stay private and dangerous security patterns are blocked."
   ],
@@ -58,17 +58,15 @@
       "styio",
       "vityo",
       "pafio",
-      "styio-cloud",
-      "styio-audit",
-      "styio-community"
+      "styio-cloud"
     ],
     "target_repository_owners": [
       "SymPolicy"
     ],
     "required_branches": [
+      "release",
       "stable",
-      "nightly",
-      "ai-dev"
+      "nightly"
     ]
   },
   "local_audit_workflow_policy": {
@@ -162,49 +160,51 @@
   },
   "upstream_branch_flow_policy": {
     "enabled": true,
+    "target_project_ids": [
+      "styio",
+      "vityo",
+      "pafio",
+      "styio-cloud"
+    ],
     "target_repository_owners": [
       "SymPolicy"
     ],
     "development_base_branches": [
-      "ai-dev",
       "nightly"
     ],
     "required_pull_request_flows": [
-      {
-        "head": "ai-dev",
-        "base": "nightly"
-      },
       {
         "head": "nightly",
         "base": "stable"
       },
       {
         "head": "stable",
-        "base": "main"
+        "base": "release"
       }
     ]
   },
   "downstream_branch_flow_policy": {
     "enabled": true,
+    "target_project_ids": [
+      "styio-nightly",
+      "vityo-nightly",
+      "pafio-nightly",
+      "styio-cloud-nightly"
+    ],
     "target_repository_owners": [
       "Unka-Malloc"
     ],
     "development_base_branches": [
-      "ai-dev",
       "nightly"
     ],
     "required_pull_request_flows": [
-      {
-        "head": "ai-dev",
-        "base": "nightly"
-      },
       {
         "head": "nightly",
         "base": "stable"
       },
       {
         "head": "stable",
-        "base": "main"
+        "base": "release"
       }
     ]
   },
