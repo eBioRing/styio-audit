@@ -735,6 +735,7 @@ def validate_server_sensitive_boundary_policy(policy: Any, module_id: str) -> li
         "target_project_ids",
         "server_project_markers",
         "code_globs",
+        "ignored_code_globs",
         "ignored_path_parts",
         "restricted_material_globs",
         "allowed_material_name_markers",
@@ -2260,6 +2261,7 @@ def check_server_sensitive_boundary_policy(context: AuditContext, files: list[st
         and any(marker_group_matches(module_text(module), marker) for marker in server_markers)
     ]
     code_globs = policy_strings(policy, "code_globs", DEFAULT_SERVER_SECURITY_CODE_GLOBS)
+    ignored_code_globs = policy_strings(policy, "ignored_code_globs", [])
     ignored_parts = set(policy_strings(policy, "ignored_path_parts", sorted(DEFAULT_SERVER_SECURITY_IGNORED_PATH_PARTS)))
     restricted_material_globs = policy_strings(policy, "restricted_material_globs", DEFAULT_SERVER_SENSITIVE_MATERIAL_GLOBS)
     allowed_material_markers = policy_strings(policy, "allowed_material_name_markers", DEFAULT_ALLOWED_MATERIAL_NAME_MARKERS)
@@ -2314,7 +2316,14 @@ def check_server_sensitive_boundary_policy(context: AuditContext, files: list[st
     code_files: list[str] = []
     for pattern in code_globs:
         code_files.extend(matches(pattern, files))
-    code_files = [path for path in unique_strings(sorted(code_files)) if not path_has_part(path, ignored_parts)]
+    ignored_code_files: set[str] = set()
+    for pattern in ignored_code_globs:
+        ignored_code_files.update(matches(pattern, files))
+    code_files = [
+        path
+        for path in unique_strings(sorted(code_files))
+        if not path_has_part(path, ignored_parts) and path not in ignored_code_files
+    ]
 
     for relative in code_files:
         path = context.repo_root / relative

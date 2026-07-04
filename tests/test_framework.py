@@ -405,6 +405,7 @@ class FrameworkTests(unittest.TestCase):
                     "target_project_ids": ["demo"],
                     "server_project_markers": ["server|service|deployment"],
                     "code_globs": ["**/*.py"],
+                    "ignored_code_globs": ["tools/audit_fixture.py"],
                     "ignored_path_parts": [".git", "__pycache__"],
                     "restricted_material_globs": [".env", "**/.env", "**/private/*.pem", "**/production/*.key"],
                     "allowed_material_name_markers": ["example", "test", "fixture", "fake"],
@@ -1398,6 +1399,13 @@ class FrameworkTests(unittest.TestCase):
                 "    return argon2.hash(value)\n\n"
                 "def generate_key_directory(path):\n"
                 "    return path\n",
+            )
+            self._write_file(
+                repo_root,
+                "tools/audit_fixture.py",
+                "allow_anonymous=True\n"
+                "shell=True\n"
+                "requests.get(url)\n",
             )
 
             findings = self._run_demo_gate(framework_root, repo_root)

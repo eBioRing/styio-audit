@@ -456,6 +456,10 @@
       "**/*.yaml",
       "**/CMakeLists.txt"
     ],
+    "ignored_code_globs": [
+      "styio_audit/checks.py",
+      "tests/test_framework.py"
+    ],
     "ignored_path_parts": [
       ".git",
       ".dart_tool",
