@@ -44,42 +44,37 @@ Dependency manifest surfaces:
 - `.github/workflows/*.yml`.
 - `.devcontainer/devcontainer.json`, `.docker/docker-compose.yaml`.
 
-## styio-spio
+## pafio / pafio-nightly
 
 Technology stack:
 
-- C++ package manager, resolver, registry, toolchain, and process code built with CMake and CTest.
-- Python registry, control-plane, docs, hygiene, and interop gates.
-- Bash delivery and checkpoint scripts.
-- JSON, TOML, and lockfile contract artifacts.
-- TypeScript and web fixture surfaces present in the repository.
+- C++ project and package CLI built with CMake and CTest.
+- Python documentation, contract, hygiene, and interoperability gates.
+- JSON metadata, workflow, registry-client, TOML manifest, and lockfile contract artifacts.
 - GitHub Actions workflow automation.
 
 Self-developed components:
 
-- `SpioManifest`, `SpioResolve`, and `SpioPlan` manifest/resolver/compile-plan graph.
-- `SpioRegistryClient` and `spio_registry_v2` registry materialization and trust layer.
-- `SpioToolchain` and `SpioTool` managed compiler/toolchain state.
-- `SpioCore` process handling and `SpioCloud` control-plane integration.
-- Native, interop, unit, docs, and delivery gate suites.
-- Registry v2 publish, verify, keygen, promote, and control-plane helper scripts.
+- Pafio manifest v1, deterministic resolver, lock transaction, content-addressed cache, sync, and vendor state.
+- `metadata v1` plus stable `check`, `build`, `run`, and `test` workflow envelopes.
+- External system-Styio discovery and compile-plan production.
+- Registry trust and read client, deterministic source pack, and publish client.
+- Native, interoperability, documentation, and delivery gates.
 
 Open-source or external components:
 
 - CMake and CTest.
-- `nlohmann_json`.
-- `tomlplusplus`.
-- `googletest`.
+- `nlohmann/json`.
+- GoogleTest.
 - Python standard library and Bash shell tooling.
 - GitHub Actions.
 
 Dependency manifest surfaces:
 
-- `CMakeLists.txt`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`.
-- TOML support files and lockfiles where present.
+- `CMakeLists.txt`, `src/CMakeLists.txt`.
 - `.github/workflows/*.yml`.
 
-## styio-view
+## vityo / vityo-nightly
 
 Technology stack:
 
@@ -93,7 +88,7 @@ Technology stack:
 Self-developed components:
 
 - Workspace document store, editor controller, selection, persistence, and shell state.
-- Backend toolchain and integration adapters for local, hosted, and web execution routes.
+- Owner adapters for Pafio metadata/workflow, system Styio machine contracts, and Platform hosted-workspace APIs.
 - Module host, module manifests, capability matrices, staged updates, and platform visibility.
 - Runtime replay surfaces, hosted payload codecs, debug console summaries, and graph/lane models.
 - Prototype UI and development server security harness.
@@ -115,10 +110,9 @@ Open-source or external components:
 
 Dependency manifest surfaces:
 
-- `frontend/styio_view_app/pubspec.yaml`.
-- `prototype/package.json`.
-- `frontend/styio_view_app/linux/CMakeLists.txt`, `frontend/styio_view_app/linux/flutter/CMakeLists.txt`.
-- `frontend/styio_view_app/windows/CMakeLists.txt`, `frontend/styio_view_app/windows/flutter/CMakeLists.txt`.
+- `products/vityo_app/pubspec.yaml`, `products/vityo_app/pubspec.lock`.
+- `products/vityo_app/linux/CMakeLists.txt`, `products/vityo_app/linux/flutter/CMakeLists.txt`.
+- `products/vityo_app/windows/CMakeLists.txt`, `products/vityo_app/windows/flutter/CMakeLists.txt`.
 - Android Gradle files.
 - `.github/workflows/*.yml`.
 
@@ -188,7 +182,7 @@ Dependency manifest surfaces:
 
 - `pyproject.toml`.
 - `modules/default/module.json`.
-- `for-styio/module.json`, `for-styio-spio/module.json`, `for-styio-view/module.json`, `for-styio-platform/module.json`, `for-styio-audit/module.json`.
+- `for-styio/module.json`, `for-pafio/module.json`, `for-vityo/module.json`, `for-styio-platform/module.json`, `for-styio-audit/module.json`.
 
 ## Audit Rule
 

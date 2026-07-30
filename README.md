@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the centralized, modular auditable-code framework for Styio-family repositories.
 
-**Last updated:** 2026-04-26
+**Last updated:** 2026-07-30
 
 `styio-audit` loads common audit rules first, then dynamically loads one or more project-specific modules for the target repository. The target project does not provide an audit API, wrapper, plugin, or gate integration; the auditor runs this repository externally against a filesystem path.
 
@@ -10,9 +10,9 @@
 
 - `modules/default/` contains the default common audit module.
 - `for-styio/` contains compiler/runtime/parser/IDE/LSP audit resources.
-- `for-styio-spio/` contains package, registry, resolver, toolchain, process, and control-plane audit resources.
-- `for-styio-view/` contains Flutter workspace, adapter, module, runtime, and platform audit resources.
-- `for-styio-platform/` contains cloud service, native contract, registry distribution, regional node, and delivery-gate audit resources.
+- `for-pafio/` contains manifest, lock, resolution, cache, metadata/workflow, vendor, pack, publish-client, and external-Styio audit resources.
+- `for-vityo/` contains Flutter editor/runtime resources and the Pafio, system Styio, and Platform owner-adapter boundaries.
+- `for-styio-platform/` contains hosted workspace, cloud execution, worker, registry/control-plane, regional node, and delivery-gate audit resources.
 - `for-styio-audit/` contains audit-framework, report, license-policy, and dependency-risk audit resources.
 - `for-.../` directories can be added for future repositories without changing the core loader.
 
@@ -23,9 +23,9 @@ Each module is loaded from `module.json`. A module can also define `checks.py` w
 ```sh
 python3 -m styio_audit.cli list-modules
 python3 -m styio_audit.cli validate-modules
-python3 -m styio_audit.cli gate --repo /path/to/repo --project styio-spio
-python3 -m styio_audit.cli report --repo /path/to/repo --project styio-spio --output audit-report.json
-python3 -m styio_audit.cli secret-history --repo /path/to/repo --project styio-spio --format json
+python3 -m styio_audit.cli gate --repo /path/to/repo --project pafio-nightly
+python3 -m styio_audit.cli report --repo /path/to/repo --project pafio-nightly --output audit-report.json
+python3 -m styio_audit.cli secret-history --repo /path/to/repo --project pafio-nightly --format json
 ```
 
 Use `--framework-only` to validate module structure and target scope globs without requiring active audit defects to be closed.
@@ -36,11 +36,11 @@ Use `--framework-only` to validate module structure and target scope globs witho
 
 Every Styio-family target repository must run a dedicated `styio-audit` GitHub Actions workflow on pull requests, pushes, and manual dispatch for managed delivery branches. That workflow checks out `eBioRing/styio-audit` at `stable` and runs `../styio-audit/bin/styio-audit gate` directly, so CI does not depend on an installed `styio-audit` from `PATH`.
 
-This repository owns two separate workflows:
+This repository owns three separate workflows:
 
 - `.github/workflows/self-audit-baseline.yml` validates `styio-audit` on every branch. It keeps module, documentation, schema, and security checks active on temporary branches while skipping branch-governance enforcement.
 - `.github/workflows/self-promotion-gate.yml` validates `styio-audit` for `nightly`, `stable`, and `main` promotion. This is the workflow that should be required for `styio-audit` promotion into protected promotion branches.
-- `.github/workflows/ecosystem-audit.yml` is an upstream eBioRing ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then checks out the configured eBioRing Styio-family repositories across their delivery branches and runs that released audit framework against `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit` scopes. Downstream forks are not scanned by this upstream fan-out workflow; they must run their own repository-local `styio-audit` workflow during pull requests and protected-branch delivery.
+- `.github/workflows/ecosystem-audit.yml` is the configured ecosystem patrol. On pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch, it checks out `eBioRing/styio-audit@stable` as the released policy source, then audits the configured Styio-family repositories across their delivery branches. Pafio and Vityo use their current repository owners and project IDs; downstream forks outside the matrix must run their own repository-local workflow.
 
 Audit logs print the `styio-audit` commit SHA and the target commit SHA. A target repository should treat its repository-local `styio-audit` workflow as a required status check before merging protected branches.
 
@@ -71,15 +71,17 @@ Examples:
 
 ```sh
 python3 -m styio_audit.cli gate --repo ../styio-nightly --project styio
-python3 -m styio_audit.cli gate --repo ../styio-spio --project styio-spio
-python3 -m styio_audit.cli gate --repo ../styio-view --project styio-view
+python3 -m styio_audit.cli gate --repo ../pafio-nightly --project pafio-nightly
+python3 -m styio_audit.cli gate --repo ../vityo-nightly --project vityo-nightly
 python3 -m styio_audit.cli gate --repo ../styio-platform --project styio-platform
 python3 -m styio_audit.cli gate --repo . --project styio-audit
 ```
 
 ## Default Policy Gates
 
-The default module applies repository-wide policy gates to all Styio-family projects: `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+The default module applies repository-wide policy gates to all Styio-family projects: `styio`, `styio-nightly`, `pafio`, `pafio-nightly`, `vityo`, `vityo-nightly`, `styio-platform`, and `styio-audit`.
+
+The product-owner split is explicit: Vityo consumes **Pafio metadata/workflow** contracts for local projects, system Styio contracts for compiler and language services, and **Platform hosted/registry** contracts for hosted workspaces and cloud execution.
 
 Manifest inventory policy:
 

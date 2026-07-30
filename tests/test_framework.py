@@ -367,11 +367,11 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual([], [finding.message for finding in findings])
 
     def test_project_stack_loads_default_and_project_module(self) -> None:
-        stack = load_stack(ROOT, "styio-spio", Path("/tmp/styio-spio"))
+        stack = load_stack(ROOT, "pafio-nightly", Path("/tmp/pafio-nightly"))
         module_ids = [module.module_id for module in stack]
         self.assertIn("default", module_ids)
-        self.assertIn("for-styio-spio", module_ids)
-        self.assertNotIn("for-styio-view", module_ids)
+        self.assertIn("for-pafio", module_ids)
+        self.assertNotIn("for-vityo", module_ids)
 
     def test_schema_validation_rejects_invalid_module_type(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

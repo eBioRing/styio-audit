@@ -25,7 +25,15 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "dependency_manifests",
 ]
 DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
-DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "styio-spio", "styio-view", "styio-platform", "styio-community"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = [
+    "styio",
+    "pafio",
+    "pafio-nightly",
+    "vityo",
+    "vityo-nightly",
+    "styio-platform",
+    "styio-community",
+]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["eBioRing"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH = ".github/workflows/styio-audit.yml"
 DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH = "templates/workflows/styio-audit-local.yml"

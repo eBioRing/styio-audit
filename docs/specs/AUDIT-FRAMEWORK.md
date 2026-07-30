@@ -33,7 +33,7 @@ External audit and repository-local quality gates are separate layers. Repositor
 
 `styio-audit` separates self-promotion from ecosystem patrols. `.github/workflows/self-audit-baseline.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for all branches. It validates module schema, unit tests, and the `styio-audit` self gate with branch-governance checks disabled, so temporary branches still receive documentation, schema, and security coverage. `.github/workflows/self-promotion-gate.yml` runs on pull requests, pushes, merge queue entries, and manual dispatch for `nightly`, `stable`, and `main`. It validates the same framework plus branch-governance checks. `self-promotion-gate` is the self-promotion status check that should be required for `styio-audit` promotion into protected promotion branches.
 
-`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `styio-spio`, `styio-view`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
+`styio-audit` also runs `.github/workflows/ecosystem-audit.yml` on pushes to `main`, `stable`, `nightly`, and `ai-dev`, plus manual dispatch. That fan-out workflow checks out `eBioRing/styio-audit@stable` as the released audit-policy source, then checks out configured eBioRing target repository branches and applies that released audit framework to `styio`, `pafio-nightly`, `vityo-nightly`, `styio-platform`, `styio-community`, and `styio-audit`. Ecosystem findings must be triaged separately and must not be configured as required `styio-audit` self-promotion checks.
 
 Detailed branch roles, promotion paths, downstream submission rules, and live GitHub Ruleset expectations are maintained in [BRANCH-GOVERNANCE.md](BRANCH-GOVERNANCE.md). This framework document references that policy and keeps only the framework-facing constraints:
 
@@ -89,7 +89,7 @@ Gate failure is based on audit quality. Passing application tests is not enough 
 
 ## License And Commercial-Risk Policy
 
-The default module applies source-license and commercial-risk gates to `styio`, `styio-nightly`, `styio-spio`, `styio-view`, `styio-platform`, and `styio-audit`.
+The default module applies source-license and commercial-risk gates to `styio`, `styio-nightly`, `pafio-nightly`, `vityo-nightly`, `styio-platform`, and `styio-audit`.
 
 License checks require:
 
@@ -133,7 +133,7 @@ The gate still hard-fails unsafe code and source artifacts: deployable secret ma
 The default module scans current worktrees for passwords, tokens, API keys, private keys, client secrets, and access keys. It also provides the `secret-history` command for full git-history scans over all reachable commits:
 
 ```bash
-python3 -m styio_audit.cli secret-history --repo /path/to/repo --project styio-spio --format json
+python3 -m styio_audit.cli secret-history --repo /path/to/repo --project pafio-nightly --format json
 ```
 
 Secret findings are intentionally redacted. Reports include rule id, class, file path, line number, value length, fingerprint, and first/last commit for history scans, but never include the suspected secret value.

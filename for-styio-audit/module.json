@@ -27,7 +27,7 @@
     "Framework test suite and command wrapper",
     "Self-audit baseline workflow for all styio-audit branches",
     "Self-promotion gate workflow for nightly, stable, and main promotion gates",
-    "Ecosystem audit fan-out workflow for eBioRing styio, styio-spio, styio-view, styio-platform, styio-community, and styio-audit delivery branches"
+    "Ecosystem audit fan-out workflow for eBioRing styio, pafio-nightly, vityo-nightly, styio-platform, styio-community, and styio-audit delivery branches"
   ],
   "open_source_components": [
     "Python standard library",
@@ -38,8 +38,8 @@
     "pyproject.toml",
     "modules/default/module.json",
     "for-styio/module.json",
-    "for-styio-spio/module.json",
-    "for-styio-view/module.json",
+    "for-pafio/module.json",
+    "for-vityo/module.json",
     "for-styio-platform/module.json",
     "for-styio-audit/module.json",
     "templates/workflows/styio-audit-local.yml",

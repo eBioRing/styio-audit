@@ -75,14 +75,14 @@ jobs:
           - { repo: eBioRing/Styio, project: styio, ref: stable }
           - { repo: eBioRing/Styio, project: styio, ref: nightly }
           - { repo: eBioRing/Styio, project: styio, ref: ai-dev }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: main }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: stable }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: nightly }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: ai-dev }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: main }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: stable }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: nightly }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: ai-dev }
+          - { repo: Unka-Malloc/pafio-nightly, project: pafio-nightly, ref: main }
+          - { repo: Unka-Malloc/pafio-nightly, project: pafio-nightly, ref: stable }
+          - { repo: Unka-Malloc/pafio-nightly, project: pafio-nightly, ref: nightly }
+          - { repo: Unka-Malloc/pafio-nightly, project: pafio-nightly, ref: ai-dev }
+          - { repo: Unka-Malloc/vityo-nightly, project: vityo-nightly, ref: main }
+          - { repo: Unka-Malloc/vityo-nightly, project: vityo-nightly, ref: stable }
+          - { repo: Unka-Malloc/vityo-nightly, project: vityo-nightly, ref: nightly }
+          - { repo: Unka-Malloc/vityo-nightly, project: vityo-nightly, ref: ai-dev }
           - { repo: eBioRing/styio-audit, project: styio-audit, ref: main }
           - { repo: eBioRing/styio-audit, project: styio-audit, ref: stable }
           - { repo: eBioRing/styio-audit, project: styio-audit, ref: nightly }

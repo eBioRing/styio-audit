@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "module_id": "for-pafio",
+  "module_type": "project",
+  "description": "Project module for Pafio project metadata, deterministic dependency resolution, local workflows, vendoring, packaging, and registry clients.",
+  "last_updated": "2026-07-30",
+  "project_ids": ["pafio", "pafio-nightly"],
+  "technology_stack": [
+    "C++ project and package CLI built with CMake and CTest",
+    "Python documentation, contract, and interoperability gates"
+  ],
+  "internal_components": [
+    "Pafio manifest v1, lock, resolution, and deterministic dependency kernel",
+    "Content-addressed package cache and offline vendor state",
+    "metadata v1 and stable check/build/run/test workflow envelopes",
+    "Registry trust, package read client, pack, and publish client",
+    "External Styio discovery and compile-plan production"
+  ],
+  "open_source_components": [
+    "CMake",
+    "C++ standard library",
+    "nlohmann/json",
+    "GoogleTest",
+    "Python standard library"
+  ],
+  "dependency_manifests": ["CMakeLists.txt", "src/CMakeLists.txt"],
+  "security_boundaries": [
+    "Pafio is a local client and does not own hosted workspace, cloud job, worker, registry server, or compiler distribution implementations.",
+    "Registry responses and package archives are untrusted input and require size, path, hash, and signature validation before materialization.",
+    "Pafio must not publish credentials, production keys, tokens, private registry data, personal data, or host-specific paths.",
+    "Pafio subprocess execution is limited to the explicitly resolved system Styio binary and rejects shell-command composition.",
+    "Pafio never installs, updates, switches, pins, or caches the Styio compiler."
+  ],
+  "resource_classes": [
+    {
+      "id": "project_dependency_kernel",
+      "owner": "Manifest / Resolution / Lock",
+      "description": "Owns pafio.toml, pafio.lock, deterministic resolution, CAS materialization, sync, and vendor state.",
+      "scope_globs": ["src/PafioManifest/**", "src/PafioResolve/**", "src/PafioStore/**", "tests/native/*Manifest*", "tests/native/*Resolve*", "tests/native/*Lock*"],
+      "copying_policy": "Dependency content is keyed by immutable identity and hash; metadata snapshots avoid copying package trees.",
+      "concurrency_policy": "Cache writes are staged and atomically promoted per immutable object identity.",
+      "nullability_policy": "Missing lock, source identity, checksum, or vendor state is explicit and fails closed under locked, offline, or frozen modes.",
+      "cleanup_policy": "Failed staging and partial materialization are removed before a transaction reports failure.",
+      "state_machine": {
+        "source": "Manifest, resolver, lock, cache, sync, and vendor implementations plus focused native tests.",
+        "states": ["unresolved", "resolving", "resolved", "locked", "materializing", "ready", "failed"],
+        "transitions": [
+          {"from": "unresolved", "to": "resolving", "on": "sync starts"},
+          {"from": "resolving", "to": "resolved", "on": "one deterministic graph is selected"},
+          {"from": "resolved", "to": "locked", "on": "lock transaction commits"},
+          {"from": "locked", "to": "materializing", "on": "objects are verified"},
+          {"from": "materializing", "to": "ready", "on": "resolution and vendor state commit"},
+          {"from": "resolving", "to": "failed", "on": "source, trust, or policy validation fails"}
+        ],
+        "invalid_operations": ["mutating lock under --locked", "network access under --offline", "unverified archive extraction", "non-deterministic candidate selection"]
+      },
+      "required_tests": ["focused manifest, resolver, lock, CAS, sync, offline, frozen, and vendor tests"],
+      "required_gates": ["Pafio native focused tests", "metadata contract gate", "git diff --check"],
+      "audit_risks": ["resolution drift", "partial lock write", "cache poisoning", "archive traversal", "offline network access"]
+    },
+    {
+      "id": "metadata_and_workflows",
+      "owner": "CLI / Project Workflow",
+      "description": "Owns metadata v1 and stable JSON envelopes for check, build, run, and test.",
+      "scope_globs": ["src/PafioCli/**", "src/PafioPlan/**", "contracts/metadata/**", "contracts/workflow/**", "tests/interop/*metadata*", "tests/interop/*workflow*"],
+      "copying_policy": "Machine payloads expose bounded project facts and references rather than compiler-owned diagnostic or runtime internals.",
+      "concurrency_policy": "Each workflow performs one sync transaction before plan generation and serializes lock mutation.",
+      "nullability_policy": "Unavailable Styio, targets, lock state, or resolution state is represented by stable structured failure.",
+      "cleanup_policy": "Failed workflows remove temporary plans and preserve the last committed project state.",
+      "state_machine": {
+        "source": "CLI command dispatch, metadata encoder, workflow envelope encoder, and interop tests.",
+        "states": ["requested", "syncing", "planned", "delegated", "succeeded", "failed"],
+        "transitions": [
+          {"from": "requested", "to": "syncing", "on": "workflow begins"},
+          {"from": "syncing", "to": "planned", "on": "dependency state is ready"},
+          {"from": "planned", "to": "delegated", "on": "compile-plan is passed to Styio"},
+          {"from": "delegated", "to": "succeeded", "on": "Styio returns success"},
+          {"from": "requested", "to": "failed", "on": "any stable precondition fails"}
+        ],
+        "invalid_operations": ["adding cloud policy to metadata", "claiming compiler diagnostics ownership", "reading a managed compiler profile", "emitting unstable prose-only workflow results"]
+      },
+      "required_tests": ["metadata exact-field tests", "workflow envelope tests", "Styio discovery precedence tests", "automatic sync tests"],
+      "required_gates": ["metadata v1 contract gate", "Pafio-to-Styio compile-plan interop", "CLI surface audit"],
+      "audit_risks": ["owner-field creep", "unstable schema", "compiler contract duplication", "workflow without sync"]
+    },
+    {
+      "id": "registry_pack_publish_client",
+      "owner": "Registry Client / Packaging",
+      "description": "Owns registry trust and reads, source archive packaging, and publish requests to the Platform registry control plane.",
+      "scope_globs": ["src/PafioRegistryClient/**", "src/PafioPackage/**", "tests/interop/*registry*", "tests/native/*Pack*", "tests/native/*Publish*"],
+      "copying_policy": "Archives stream bounded files and registry payloads retain immutable object identities.",
+      "concurrency_policy": "Publish and cache writes use isolated staging and idempotent server request identifiers.",
+      "nullability_policy": "Missing trust roots, package identities, checksums, or publish responses fail closed.",
+      "cleanup_policy": "Temporary archives, downloads, and staging directories are removed after success or failure.",
+      "state_machine": {
+        "source": "Registry client, pack/publish commands, archive validation, and Platform interoperability tests.",
+        "states": ["prepared", "packed", "validated", "submitted", "published", "rejected"],
+        "transitions": [
+          {"from": "prepared", "to": "packed", "on": "bounded archive is written"},
+          {"from": "packed", "to": "validated", "on": "manifest and archive checks pass"},
+          {"from": "validated", "to": "submitted", "on": "publish request is sent"},
+          {"from": "submitted", "to": "published", "on": "Platform commits the release"},
+          {"from": "prepared", "to": "rejected", "on": "any trust or policy check fails"}
+        ],
+        "invalid_operations": ["publishing unvalidated archives", "reading server credentials from PAFIO_HOME", "hosting registry server routes", "overwriting immutable releases"]
+      },
+      "required_tests": ["pack determinism tests", "publish request contract tests", "registry trust and malicious archive tests"],
+      "required_gates": ["Platform registry publish/consume matrix", "registry client focused tests", "privacy scan"],
+      "audit_risks": ["credential leak", "archive traversal", "unbounded input", "publish mismatch", "server/client ownership drift"]
+    }
+  ]
+}

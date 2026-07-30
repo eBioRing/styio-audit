@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "module_id": "for-vityo",
+  "module_type": "project",
+  "description": "Project module for the Vityo client, owner adapters, editor runtime, agents, and platform-specific shells.",
+  "last_updated": "2026-07-30",
+  "project_ids": ["vityo", "vityo-nightly"],
+  "technology_stack": ["Dart and Flutter", "Python repository gates", "platform runner toolchains"],
+  "internal_components": [
+    "Pafio metadata and workflow adapter",
+    "System Styio machine-info and language-service adapters",
+    "Styio Platform hosted-workspace adapter",
+    "Editor, runtime, agent, module, and platform surfaces"
+  ],
+  "open_source_components": ["Flutter", "Dart", "Python standard library"],
+  "dependency_manifests": ["products/vityo_app/pubspec.yaml", "products/vityo_app/pubspec.lock"],
+  "security_boundaries": [
+    "Vityo consumes Pafio metadata and workflow JSON without reading PAFIO_HOME or private Pafio storage.",
+    "Vityo consumes system Styio contracts directly and does not install, update, pin, switch, or cache the compiler.",
+    "Hosted workspace and cloud execution requests go only through Styio Platform contracts.",
+    "Agent tools require explicit permission classification and bounded structured outputs.",
+    "Credentials and production provider data must not appear in source, fixtures, logs, or reports."
+  ],
+  "resource_classes": [
+    {
+      "id": "ecosystem_owner_adapters",
+      "owner": "Backend Toolchain / Owner Adapters",
+      "description": "Owns the three-source split across Pafio metadata/workflow, system Styio machine contracts, and Platform hosted-workspace APIs.",
+      "scope_globs": ["products/vityo_app/lib/owner_adapters/**", "products/vityo_app/lib/src/view_ide/backend_toolchain/**", "products/vityo_app/test/owner_adapter_contract_test.dart", "products/vityo_app/test/project_graph_adapter_test.dart"],
+      "copying_policy": "Adapters normalize bounded contract fields and avoid copying private upstream state.",
+      "concurrency_policy": "Refreshes reject stale project, compiler, and hosted-workspace responses.",
+      "nullability_policy": "Missing owners or unsupported contract versions become explicit blocked capability states.",
+      "cleanup_policy": "Temporary workflow overlays and subscriptions are released when workspaces or sessions change.",
+      "state_machine": {
+        "source": "Owner adapter implementations, public contract docs, and focused adapter tests.",
+        "states": ["unavailable", "discovering", "ready", "refreshing", "blocked", "closed"],
+        "transitions": [
+          {"from": "unavailable", "to": "discovering", "on": "workspace opens"},
+          {"from": "discovering", "to": "ready", "on": "owner contracts validate"},
+          {"from": "ready", "to": "refreshing", "on": "project or hosted state changes"},
+          {"from": "refreshing", "to": "ready", "on": "fresh response commits"},
+          {"from": "discovering", "to": "blocked", "on": "an owner or contract is unavailable"},
+          {"from": "ready", "to": "closed", "on": "workspace closes"}
+        ],
+        "invalid_operations": ["reading PAFIO_HOME", "invoking removed Pafio commands", "managing Styio installation", "treating hosted state as local Pafio state"]
+      },
+      "required_tests": ["owner adapter contract tests", "local project graph tests", "hosted adapter tests", "workflow envelope tests"],
+      "required_gates": ["flutter analyze lib test", "focused owner-adapter tests", "Vityo ecosystem owner gate"],
+      "audit_risks": ["owner drift", "private state coupling", "stale response", "schema coercion", "hosted/local confusion"]
+    },
+    {
+      "id": "editor_runtime_agent",
+      "owner": "Editor / Runtime / Agent",
+      "description": "Owns document state, language presentation, runtime event views, agent command routing, and explicit permission flows.",
+      "scope_globs": ["products/vityo_app/lib/src/ide/**", "products/vityo_app/lib/src/view_ide/**", "products/vityo_app/lib/src/view_render/**", "products/vityo_app/test/**"],
+      "copying_policy": "Large document, diagnostic, runtime, and agent collections are indexed, bounded, or windowed before UI projection.",
+      "concurrency_policy": "Document revisions, service responses, runtime sessions, and agent turns reject stale updates.",
+      "nullability_policy": "Unavailable capabilities, routes, diagnostics, and selections use explicit empty or blocked models.",
+      "cleanup_policy": "Controllers, subscriptions, caches, temporary files, and process handles are disposed with their owning workspace or session.",
+      "state_machine": {
+        "source": "Editor, language, runtime, agent, and shell models with focused unit and widget tests.",
+        "states": ["idle", "active", "refreshing", "waiting_permission", "completed", "failed", "disposed"],
+        "transitions": [
+          {"from": "idle", "to": "active", "on": "workspace or session starts"},
+          {"from": "active", "to": "refreshing", "on": "new owner facts or document revision arrives"},
+          {"from": "active", "to": "waiting_permission", "on": "a protected command is proposed"},
+          {"from": "refreshing", "to": "active", "on": "fresh state commits"},
+          {"from": "active", "to": "completed", "on": "bounded workflow completes"},
+          {"from": "active", "to": "failed", "on": "a structured error occurs"},
+          {"from": "active", "to": "disposed", "on": "owner closes"}
+        ],
+        "invalid_operations": ["applying stale edits", "bypassing permission checks", "unbounded UI materialization", "retaining workspace resources after disposal"]
+      },
+      "required_tests": ["document lifecycle tests", "language cache freshness tests", "runtime replay tests", "agent permission and command routing tests", "widget smoke tests"],
+      "required_gates": ["Flutter focused tests", "architecture boundary gate", "security baseline gate", "docs audit"],
+      "audit_risks": ["stale edit", "permission bypass", "resource leak", "unbounded rendering", "private payload exposure"]
+    }
+  ]
+}
