@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "module_id": "for-styio-ext-vsc",
+  "module_type": "project",
+  "description": "Repository module for the Styio Visual Studio Code extension, grammar, snippets, and LSP client integration.",
+  "last_updated": "2026-06-29",
+  "project_ids": [
+    "styio-ext-vsc",
+    "ext-vsc",
+    "vscode-extension"
+  ],
+  "audit_profile": "client-tooling",
+  "technology_stack": [
+    "TypeScript VS Code extension",
+    "TextMate grammar",
+    "Node.js packaging",
+    "LSP client resolver"
+  ],
+  "internal_components": [
+    "extension_activation",
+    "lsp_client",
+    "server_resolver",
+    "syntax_grammar",
+    "snippet_catalog",
+    "marketplace_release"
+  ],
+  "open_source_components": [
+    "VS Code extension API",
+    "Node.js package ecosystem",
+    "TextMate grammar format"
+  ],
+  "dependency_manifests": [
+    "package.json"
+  ],
+  "ci_gate_contract": {
+    "platform_adaptation": {
+      "linux": "platform-adaptation / linux-ci-gate",
+      "macos": "platform-adaptation / macos-ci-gate",
+      "windows": "platform-adaptation / windows-ci-gate"
+    },
+    "test_gates": {
+      "smoke": "test / smoke",
+      "golden_standard": "test / golden-standard"
+    },
+    "classified_gates": [
+      "client / release / marketplace"
+    ],
+    "submit_readiness": "A VS Code extension version is submittable when every declared `platform-adaptation / ...-ci-gate`, `test / smoke`, `test / golden-standard`, and `client / release / marketplace` pass for release candidates.",
+    "golden_standard_suite": {
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "required_files": [
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md"
+      ],
+      "required_markers": {
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md": [
+          "test / smoke",
+          "test / golden-standard",
+          "submit readiness"
+        ]
+      }
+    },
+    "industry_gate_groups": {
+      "ide / extension-quality": {
+        "covered_by": "test / golden-standard",
+        "industry_references": [
+          "VS Code Testing Extensions: extension host integration tests and VS Code API access",
+          "VS Code Publishing Extensions: VSIX packaging and Marketplace publishing through vsce",
+          "npm ci: clean dependency installation from lockfiles in CI"
+        ],
+        "required_markers": [
+          "extension host test",
+          "lsp wire",
+          "vsix package",
+          "release preflight",
+          "marketplace"
+        ]
+      }
+    },
+    "local_gate_profile": {
+      "profile_id": "styio-ext-vsc-lsp-vsix-profile",
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "covered_by": "test / golden-standard",
+      "required_markers": [
+        "repo-owned adaptation",
+        "styio_lspd",
+        "VSIX",
+        "LSP wire",
+        "Marketplace"
+      ]
+    }
+  },
+  "resource_classes": [
+    {
+      "id": "vscode_extension_surface",
+      "owner": "Editor Integration",
+      "description": "Owns extension activation, language grammar, snippets, LSP client wiring, and release packaging.",
+      "scope_globs": [
+        "package.json",
+        "src/**",
+        "syntaxes/**",
+        "snippets/**",
+        "scripts/**",
+        "test/**",
+        "docs/**",
+        ".github/workflows/**"
+      ],
+      "copying_policy": "Extension assets and release metadata must preserve license notices and avoid embedding marketplace credentials or private service endpoints.",
+      "concurrency_policy": "Grammar, snippets, LSP resolver, and tests should move together when syntax surfaces change.",
+      "nullability_policy": "Missing package metadata, grammar, or resolver code makes the extension release surface incomplete.",
+      "cleanup_policy": "Packaged VSIX artifacts, temporary release tokens, and local editor caches must stay untracked.",
+      "state_machine": {
+        "source": "VS Code extension release lifecycle.",
+        "states": [
+          "developed",
+          "tested",
+          "packaged",
+          "published"
+        ],
+        "transitions": [
+          {
+            "from": "developed",
+            "to": "tested",
+            "on": "run grammar and extension tests"
+          },
+          {
+            "from": "tested",
+            "to": "packaged",
+            "on": "build marketplace artifact"
+          },
+          {
+            "from": "packaged",
+            "to": "published",
+            "on": "release approved artifact"
+          }
+        ],
+        "invalid_operations": [
+          "commit marketplace token",
+          "publish package without grammar and smoke evidence"
+        ]
+      },
+      "required_tests": [
+        "npm test, grammar checks, extension smoke tests"
+      ],
+      "required_gates": [
+        "styio-audit common gate",
+        "local extension CI"
+      ],
+      "audit_risks": [
+        "marketplace credential leakage",
+        "grammar drift",
+        "LSP resolver supply-chain risk"
+      ]
+    }
+  ]
+}

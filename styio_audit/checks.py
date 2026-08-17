@@ -5,8 +5,10 @@ import ipaddress
 import os
 import re
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from .loader import hook_findings
 from .models import AuditContext, AuditFinding, AuditModule
@@ -24,26 +26,63 @@ REQUIRED_PROJECT_INVENTORY_FIELDS = [
     "open_source_components",
     "dependency_manifests",
 ]
-DEFAULT_REQUIRED_BRANCHES = ["stable", "nightly", "ai-dev"]
-DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = ["styio", "styio-spio", "styio-view", "styio-platform", "styio-community"]
-DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["eBioRing"]
+AUDIT_PROFILE_VALUES = {
+    "backend-operations",
+    "benchmark-basic",
+    "client-tooling",
+    "development-environment",
+    "documentation-basic",
+    "ecosystem-aggregate",
+    "example-basic",
+    "framework-policy",
+    "language-core",
+    "static-website",
+}
+BACKEND_AUDIT_PROFILES = {"backend-operations"}
+DEFAULT_REQUIRED_BRANCHES = ["release", "stable", "nightly"]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_PROJECT_IDS = [
+    "Styio",
+    "Pafio",
+    "Vityo",
+    "Styio-Cloud",
+    "styio-cloud",
+    "styio-all-in-one",
+    "styio-benchmark",
+    "styio-book",
+    "styio-community",
+    "styio-dev-doc",
+    "styio-dev-env",
+    "styio-example",
+    "styio-ext-vsc",
+    "styio.io",
+]
+DEFAULT_LOCAL_AUDIT_WORKFLOW_OWNERS = ["SymPolicy"]
 DEFAULT_LOCAL_AUDIT_WORKFLOW_PATH = ".github/workflows/styio-audit.yml"
 DEFAULT_LOCAL_AUDIT_TEMPLATE_PATH = "templates/workflows/styio-audit-local.yml"
-DEFAULT_LOCAL_DELIVERY_FRAMEWORK_PROJECT_IDS = ["styio", "styio-nightly"]
-DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS = ["eBioRing"]
-DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["eBioRing"]
-DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
+DEFAULT_LOCAL_DELIVERY_FRAMEWORK_PROJECT_IDS = ["styio", "Styio", "styio-nightly"]
+DEFAULT_LOCAL_DELIVERY_FRAMEWORK_OWNERS = ["SymPolicy"]
+CI_GATE_CLASSIFICATION_RE = re.compile(r"^[a-z][a-z0-9-]*(?: / [a-z][a-z0-9-]*)+$")
+LOCAL_GATE_PROFILE_ID_RE = re.compile(r"^[a-z][a-z0-9-]*(?:-[a-z0-9]+)*$")
+PLATFORM_CI_GATE_RUNNER_MARKERS = {
+    "linux": ("ubuntu-", "linux"),
+    "macos": ("macos-",),
+    "windows": ("windows-",),
+}
+TEST_CI_GATE_NAMES = {
+    "smoke": "test / smoke",
+    "golden_standard": "test / golden-standard",
+}
+DEFAULT_UPSTREAM_BRANCH_FLOW_OWNERS = ["SymPolicy"]
+DEFAULT_UPSTREAM_DEVELOPMENT_BASE_BRANCHES = ["nightly"]
 DEFAULT_UPSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
-    {"head": "ai-dev", "base": "nightly"},
     {"head": "nightly", "base": "stable"},
-    {"head": "stable", "base": "main"},
+    {"head": "stable", "base": "release"},
 ]
 DEFAULT_DOWNSTREAM_BRANCH_FLOW_OWNERS = ["Unka-Malloc"]
-DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["ai-dev", "nightly"]
+DEFAULT_DOWNSTREAM_DEVELOPMENT_BASE_BRANCHES = ["nightly"]
 DEFAULT_DOWNSTREAM_REQUIRED_PULL_REQUEST_FLOWS = [
-    {"head": "ai-dev", "base": "nightly"},
     {"head": "nightly", "base": "stable"},
-    {"head": "stable", "base": "main"},
+    {"head": "stable", "base": "release"},
 ]
 DEFAULT_LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING", "COPYING.md", "COPYING.txt"]
 DEFAULT_LICENSE_METADATA_FILES = ["pyproject.toml", "package.json", "pubspec.yaml"]
@@ -76,6 +115,106 @@ DEFAULT_DEPENDENCY_BOUNDARY_FILES = [
     "docs/third-party.md",
 ]
 IGNORED_DEPENDENCY_PATH_PARTS = {".git", ".dart_tool", ".pytest_cache", ".venv", "build", "dist", "node_modules", "venv"}
+DEFAULT_REPO_HYGIENE_MAX_FILE_BYTES = 5 * 1024 * 1024
+DEFAULT_REPO_HYGIENE_IGNORED_PATH_PARTS = {".git"}
+DEFAULT_REPO_HYGIENE_FORBIDDEN_PATH_GLOBS = [
+    ".DS_Store",
+    "**/.DS_Store",
+    "Thumbs.db",
+    "**/Thumbs.db",
+    "Desktop.ini",
+    "**/Desktop.ini",
+    "*~",
+    "**/*~",
+    "*.tmp",
+    "**/*.tmp",
+    "*.temp",
+    "**/*.temp",
+    "*.bak",
+    "**/*.bak",
+    "*.orig",
+    "**/*.orig",
+    "*.rej",
+    "**/*.rej",
+    "*.swp",
+    "**/*.swp",
+    "*.swo",
+    "**/*.swo",
+    "*.log",
+    "**/*.log",
+    ".coverage",
+    "**/.coverage",
+    "coverage.xml",
+    "**/coverage.xml",
+    ".pytest_cache/**",
+    "**/.pytest_cache/**",
+    ".mypy_cache/**",
+    "**/.mypy_cache/**",
+    ".ruff_cache/**",
+    "**/.ruff_cache/**",
+    ".tox/**",
+    "**/.tox/**",
+    ".nox/**",
+    "**/.nox/**",
+    "__pycache__/**",
+    "**/__pycache__/**",
+    ".dart_tool/**",
+    "**/.dart_tool/**",
+    "node_modules/**",
+    "**/node_modules/**",
+    "build/**",
+    "**/build/**",
+    "dist/**",
+    "**/dist/**",
+    "out/**",
+    "**/out/**",
+    "DerivedData/**",
+    "**/DerivedData/**",
+    "*.sqlite",
+    "**/*.sqlite",
+    "*.sqlite3",
+    "**/*.sqlite3",
+    "*.db",
+    "**/*.db",
+    "*.db-journal",
+    "**/*.db-journal",
+    "*.parquet",
+    "**/*.parquet",
+    "*.arrow",
+    "**/*.arrow",
+    "*.npy",
+    "**/*.npy",
+    "*.npz",
+    "**/*.npz",
+    "*.pkl",
+    "**/*.pkl",
+    "*.pickle",
+    "**/*.pickle",
+    "*.dump",
+    "**/*.dump",
+    "*.dmp",
+    "**/*.dmp",
+    "*.profraw",
+    "**/*.profraw",
+    "*.profdata",
+    "**/*.profdata",
+    "*.gcda",
+    "**/*.gcda",
+    "*.gcno",
+    "**/*.gcno",
+    "*.zip",
+    "**/*.zip",
+    "*.tar",
+    "**/*.tar",
+    "*.tgz",
+    "**/*.tgz",
+    "*.tar.gz",
+    "**/*.tar.gz",
+    "*.7z",
+    "**/*.7z",
+    "*.rar",
+    "**/*.rar",
+]
 DEFAULT_SERVER_SECURITY_CODE_GLOBS = [
     "**/*.c",
     "**/*.cc",
@@ -284,8 +423,8 @@ DEFAULT_SERVER_DANGEROUS_CODE_CATEGORIES = {
     ],
 }
 DEFAULT_SERVER_PROJECT_MARKERS = [
-    "server deployment|server-deployment|server-side|backend|服务端",
-    "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control",
+    "server deployment|server-deployment|server-side|backend|backend-operations|backend operations|服务端",
+    "cloud|hosted|control-plane|regional node|systemd|vm deployment|registry|worker-control|service surface",
 ]
 DEFAULT_IP_SCAN_IGNORED_PATH_PARTS = {
     ".dart_tool",
@@ -300,11 +439,147 @@ DEFAULT_IP_SCAN_IGNORED_PATH_PARTS = {
     "node_modules",
     "venv",
 }
+DEFAULT_PUBLIC_INFRASTRUCTURE_EXPOSURE_PROJECT_IDS = [
+    "styio-pafio",
+    "Pafio",
+    "pafio",
+    "Styio-Cloud",
+    "styio-cloud",
+    "styio-community",
+    "community",
+]
+DEFAULT_PUBLIC_INFRASTRUCTURE_EXPOSURE_OWNERS = ["SymPolicy"]
+DEFAULT_INFRASTRUCTURE_SCAN_GLOBS = [
+    "*.c",
+    "*.cc",
+    "*.cpp",
+    "*.cxx",
+    "*.h",
+    "*.hh",
+    "*.hpp",
+    "*.md",
+    "*.py",
+    "*.sh",
+    "*.bash",
+    "*.toml",
+    "*.txt",
+    "*.yml",
+    "*.yaml",
+    "**/*.c",
+    "**/*.cc",
+    "**/*.cpp",
+    "**/*.cxx",
+    "**/*.h",
+    "**/*.hh",
+    "**/*.hpp",
+    "**/*.md",
+    "**/*.py",
+    "**/*.sh",
+    "**/*.bash",
+    "**/*.toml",
+    "**/*.txt",
+    "**/*.yml",
+    "**/*.yaml",
+]
+DEFAULT_INFRASTRUCTURE_IGNORED_PATH_PARTS = {
+    ".dart_tool",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "build-codex",
+    "dist",
+    "node_modules",
+    "venv",
+}
+DEFAULT_RESTRICTED_INFRASTRUCTURE_GLOBS = [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/.kube/**",
+    "**/*kubeconfig*",
+    "**/*.tfstate",
+    "**/*.tfstate.*",
+    "**/*.tfvars",
+    "**/ansible/**",
+    "**/deploy/prod/**",
+    "**/deploy/production/**",
+    "**/infra/**",
+    "**/inventory.ini",
+    "**/ops/**",
+    "**/private/**",
+    "**/prod/**",
+    "**/production/**",
+]
+DEFAULT_INFRASTRUCTURE_ALLOWED_PLACEHOLDER_MARKERS = [
+    "example",
+    "sample",
+    "template",
+    "test",
+    "fixture",
+    "fake",
+    "dummy",
+    "placeholder",
+    "public",
+]
+DEFAULT_INFRASTRUCTURE_ALLOWED_HOST_SUFFIXES = [
+    "example.com",
+    "example.invalid",
+    "example.net",
+    "example.org",
+    "github.com",
+    "github.io",
+    "localhost",
+]
+DEFAULT_INFRASTRUCTURE_DISALLOWED_HOST_MARKERS = [
+    "admin",
+    "backend",
+    "bastion",
+    "console",
+    "control-plane",
+    "database",
+    "db",
+    "grafana",
+    "internal",
+    "kibana",
+    "ops",
+    "private",
+    "prod",
+    "production",
+    "prometheus",
+    "redis",
+    "registry",
+    "sentry",
+    "staging",
+    "vault",
+    "vpn",
+]
+DEFAULT_INFRASTRUCTURE_DISALLOWED_DSN_SCHEMES = [
+    "amqp",
+    "mongodb",
+    "mongodb+srv",
+    "mysql",
+    "postgres",
+    "postgresql",
+    "redis",
+    "smtp",
+]
+DEFAULT_INFRASTRUCTURE_CLOUD_RESOURCE_MARKERS = [
+    "arn:aws:",
+    "s3://",
+    "gs://",
+    "/subscriptions/",
+    "resourcegroups/",
+]
 IPV4_RE = re.compile(
-    r"(?<![0-9.])"
+    r"(?<![A-Za-z0-9.])"
     r"(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])"
     r"(?:\.(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}"
-    r"(?![0-9.])"
+    r"(?![A-Za-z0-9.])"
 )
 IPV6_RE = re.compile(
     r"(?<![A-Za-z0-9_:.-])"
@@ -313,6 +588,17 @@ IPV6_RE = re.compile(
 )
 IPV6_UNSPECIFIED_RE = re.compile(r"(?<![A-Za-z0-9_:.-])::(?![A-Za-z0-9_:.-])")
 SVG_PATH_DATA_PREFIX_RE = re.compile(r"\bd\s*=\s*[\"'][^\"']*$")
+URL_RE = re.compile(r"\bhttps?://[^\s\"'<>`)]+")
+DSN_RE = re.compile(r"\b([A-Za-z][A-Za-z0-9+.-]*://[^\s\"'<>`)]+)")
+DOCUMENTATION_IP_NETWORKS = tuple(
+    ipaddress.ip_network(network)
+    for network in (
+        "192.0.2.0/24",
+        "198.51.100.0/24",
+        "203.0.113.0/24",
+        "2001:db8::/32",
+    )
+)
 
 
 def finding(message: str, module_id: str = "core", severity: str = "error") -> AuditFinding:
@@ -357,6 +643,90 @@ def get_optional_string_list(obj: dict[str, Any], key: str, context: str, module
     return get_string_list(obj, key, context, module_id)
 
 
+@dataclass(frozen=True)
+class WorkflowJob:
+    path: str
+    workflow_name: str
+    job_id: str
+    job_name: str
+    runs_on: str
+
+
+def yaml_scalar(value: str) -> str:
+    value = value.strip()
+    if "#" in value:
+        value = value.split("#", 1)[0].rstrip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def workflow_jobs(repo_root: Path, files: list[str]) -> list[WorkflowJob]:
+    jobs: list[WorkflowJob] = []
+    workflow_files = sorted(
+        relative
+        for relative in files
+        if relative.startswith(".github/workflows/") and Path(relative).suffix in {".yml", ".yaml"}
+    )
+
+    for relative in workflow_files:
+        path = repo_root / relative
+        workflow_name = ""
+        in_jobs = False
+        current_job: dict[str, str] | None = None
+        for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+                continue
+            if not raw_line.startswith(" ") and raw_line.startswith("name:"):
+                workflow_name = yaml_scalar(raw_line.split(":", 1)[1])
+                continue
+            if raw_line == "jobs:":
+                in_jobs = True
+                current_job = None
+                continue
+            if not in_jobs:
+                continue
+            if not raw_line.startswith(" "):
+                current_job = None
+                in_jobs = False
+                continue
+            job_match = re.match(r"^  ([A-Za-z0-9_-]+):\s*(?:#.*)?$", raw_line)
+            if job_match:
+                if current_job is not None:
+                    jobs.append(
+                        WorkflowJob(
+                            path=relative,
+                            workflow_name=workflow_name,
+                            job_id=current_job["job_id"],
+                            job_name=current_job.get("job_name") or current_job["job_id"],
+                            runs_on=current_job.get("runs_on", ""),
+                        )
+                    )
+                current_job = {"job_id": job_match.group(1)}
+                continue
+            if current_job is None:
+                continue
+            name_match = re.match(r"^    name:\s*(.+)$", raw_line)
+            if name_match:
+                current_job["job_name"] = yaml_scalar(name_match.group(1))
+                continue
+            runs_on_match = re.match(r"^    runs-on:\s*(.+)$", raw_line)
+            if runs_on_match:
+                current_job["runs_on"] = yaml_scalar(runs_on_match.group(1))
+                continue
+        if current_job is not None:
+            jobs.append(
+                WorkflowJob(
+                    path=relative,
+                    workflow_name=workflow_name,
+                    job_id=current_job["job_id"],
+                    job_name=current_job.get("job_name") or current_job["job_id"],
+                    runs_on=current_job.get("runs_on", ""),
+                )
+            )
+    return jobs
+
+
 def validate_license_policy(policy: Any, module_id: str) -> list[AuditFinding]:
     if not isinstance(policy, dict):
         return [finding("module license_policy must be an object", module_id)]
@@ -370,6 +740,7 @@ def validate_license_policy(policy: Any, module_id: str) -> list[AuditFinding]:
         "spdx_identifiers",
         "license_text_markers",
         "target_project_ids",
+        "target_repository_owners",
         "license_files",
         "metadata_files",
         "notice_files",
@@ -393,6 +764,7 @@ def validate_commercial_risk_policy(policy: Any, module_id: str) -> list[AuditFi
         findings.extend(require_string(policy, key, "module commercial_risk_policy", module_id))
     for key in (
         "target_project_ids",
+        "target_repository_owners",
         "manifest_globs",
         "boundary_files",
         "required_boundary_markers",
@@ -417,6 +789,62 @@ def validate_manifest_inventory_policy(policy: Any, module_id: str) -> list[Audi
     missing = [item for item in REQUIRED_PROJECT_INVENTORY_FIELDS if item not in values]
     if missing:
         findings.append(finding(f"module manifest_inventory_policy.required_fields missing required entries: {', '.join(missing)}", module_id))
+    return findings
+
+
+def validate_repository_module_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module repository_module_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module repository_module_policy.enabled must be a boolean", module_id))
+    findings.extend(require_string(policy, "name", "module repository_module_policy", module_id))
+    for key in ("required_project_ids",):
+        values, key_findings = get_optional_string_list(policy, key, "module repository_module_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module repository_module_policy `{key}` entries must be unique", module_id))
+    return findings
+
+
+def validate_repo_hygiene_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module repo_hygiene_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module repo_hygiene_policy.enabled must be a boolean", module_id))
+    for key in ("name", "source_boundary"):
+        findings.extend(require_string(policy, key, "module repo_hygiene_policy", module_id))
+    for key in (
+        "target_project_ids",
+        "ignored_path_parts",
+        "forbidden_path_globs",
+    ):
+        values, key_findings = get_optional_string_list(policy, key, "module repo_hygiene_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module repo_hygiene_policy `{key}` entries must be unique", module_id))
+    for key in ("allowed_path_globs", "allowed_large_file_globs"):
+        values = policy.get(key, [])
+        if not isinstance(values, list):
+            findings.append(finding(f"module repo_hygiene_policy.{key} must be a list", module_id))
+            continue
+        seen: set[str] = set()
+        for index, value in enumerate(values):
+            if not isinstance(value, str) or not value.strip():
+                findings.append(finding(f"module repo_hygiene_policy.{key}[{index}] must be a non-empty string", module_id))
+                continue
+            if value in seen:
+                findings.append(finding(f"module repo_hygiene_policy `{key}` entries must be unique", module_id))
+            seen.add(value)
+    forbidden_path_globs = policy.get("forbidden_path_globs", DEFAULT_REPO_HYGIENE_FORBIDDEN_PATH_GLOBS)
+    if not isinstance(forbidden_path_globs, list) or not forbidden_path_globs:
+        findings.append(finding("module repo_hygiene_policy.forbidden_path_globs must be a non-empty list", module_id))
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_REPO_HYGIENE_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        findings.append(finding("module repo_hygiene_policy.max_file_bytes must be a positive integer", module_id))
     return findings
 
 
@@ -500,6 +928,246 @@ def validate_local_delivery_framework_policy(policy: Any, module_id: str) -> lis
     return findings
 
 
+def validate_ci_gate_contract(contract: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(contract, dict):
+        return [finding("project module ci_gate_contract must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    platform_gates = contract.get("platform_adaptation", {})
+    if not isinstance(platform_gates, dict):
+        findings.append(finding("project module ci_gate_contract.platform_adaptation must be an object", module_id))
+    else:
+        seen_gate_names: set[str] = set()
+        for platform, gate_name in platform_gates.items():
+            if not isinstance(platform, str) or not platform.strip():
+                findings.append(finding("project module ci_gate_contract.platform_adaptation keys must be non-empty strings", module_id))
+                continue
+            if not isinstance(gate_name, str) or not gate_name.strip():
+                findings.append(
+                    finding(
+                        f"project module ci_gate_contract.platform_adaptation.{platform} must be a non-empty string",
+                        module_id,
+                    )
+                )
+                continue
+            canonical = f"platform-adaptation / {platform.strip()}-ci-gate"
+            if gate_name.strip() != canonical:
+                findings.append(
+                    finding(
+                        f"project module ci_gate_contract.platform_adaptation.{platform} must be `{canonical}`",
+                        module_id,
+                    )
+                )
+            if gate_name in seen_gate_names:
+                findings.append(finding("project module ci_gate_contract.platform_adaptation gate names must be unique", module_id))
+            seen_gate_names.add(gate_name)
+
+    classified_gates = contract.get("classified_gates", [])
+    if classified_gates:
+        if not isinstance(classified_gates, list):
+            findings.append(finding("project module ci_gate_contract.classified_gates must be a list", module_id))
+        else:
+            seen: set[str] = set()
+            for index, gate_name in enumerate(classified_gates):
+                if not isinstance(gate_name, str) or not gate_name.strip():
+                    findings.append(finding(f"project module ci_gate_contract.classified_gates[{index}] must be a non-empty string", module_id))
+                    continue
+                if not CI_GATE_CLASSIFICATION_RE.match(gate_name.strip()):
+                    findings.append(
+                        finding(
+                            f"project module ci_gate_contract.classified_gates[{index}] must use `category / action` classification",
+                            module_id,
+                        )
+                    )
+                if gate_name in seen:
+                    findings.append(finding("project module ci_gate_contract.classified_gates entries must be unique", module_id))
+                seen.add(gate_name)
+
+    test_gates = contract.get("test_gates", {})
+    if test_gates:
+        if not isinstance(test_gates, dict):
+            findings.append(finding("project module ci_gate_contract.test_gates must be an object", module_id))
+        else:
+            for key, canonical in TEST_CI_GATE_NAMES.items():
+                gate_name = test_gates.get(key)
+                if not isinstance(gate_name, str) or not gate_name.strip():
+                    findings.append(finding(f"project module ci_gate_contract.test_gates.{key} must be `{canonical}`", module_id))
+                    continue
+                if gate_name.strip() != canonical:
+                    findings.append(finding(f"project module ci_gate_contract.test_gates.{key} must be `{canonical}`", module_id))
+            for key, gate_name in test_gates.items():
+                if key not in TEST_CI_GATE_NAMES:
+                    findings.append(finding(f"project module ci_gate_contract.test_gates has unknown gate key `{key}`", module_id))
+                if isinstance(gate_name, str) and gate_name.strip() and not CI_GATE_CLASSIFICATION_RE.match(gate_name.strip()):
+                    findings.append(
+                        finding(
+                            f"project module ci_gate_contract.test_gates.{key} must use `category / action` classification",
+                            module_id,
+                        )
+                    )
+    submit_readiness = contract.get("submit_readiness")
+    if test_gates or submit_readiness is not None:
+        if not isinstance(submit_readiness, str) or not submit_readiness.strip():
+            findings.append(finding("project module ci_gate_contract.submit_readiness must describe the submittable-version standard", module_id))
+        else:
+            normalized = normalized_text(submit_readiness)
+            for gate_name in TEST_CI_GATE_NAMES.values():
+                if normalized_text(gate_name) not in normalized:
+                    findings.append(
+                        finding(
+                            f"project module ci_gate_contract.submit_readiness must mention `{gate_name}`",
+                            module_id,
+                        )
+                    )
+    golden_suite = contract.get("golden_standard_suite")
+    if golden_suite is not None:
+        findings.extend(validate_golden_standard_suite_contract(golden_suite, module_id))
+
+    local_profile = contract.get("local_gate_profile")
+    if local_profile is None:
+        findings.append(finding("project module ci_gate_contract.local_gate_profile must describe the repo-owned gate adaptation", module_id))
+    else:
+        findings.extend(validate_local_gate_profile_contract(local_profile, module_id))
+
+    industry_groups = contract.get("industry_gate_groups", {})
+    if industry_groups:
+        findings.extend(validate_industry_gate_groups_contract(industry_groups, module_id))
+    return findings
+
+
+def validate_golden_standard_suite_contract(suite: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(suite, dict):
+        return [finding("project module ci_gate_contract.golden_standard_suite must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    findings.extend(require_string(suite, "manifest", "project module ci_gate_contract.golden_standard_suite", module_id))
+
+    for key in ("required_files",):
+        values, key_findings = get_optional_string_list(suite, key, "project module ci_gate_contract.golden_standard_suite", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"project module ci_gate_contract.golden_standard_suite `{key}` entries must be unique", module_id))
+
+    markers = suite.get("required_markers", {})
+    if not isinstance(markers, dict):
+        findings.append(finding("project module ci_gate_contract.golden_standard_suite.required_markers must be an object", module_id))
+        return findings
+    for path, required_markers in markers.items():
+        if not isinstance(path, str) or not path.strip():
+            findings.append(finding("project module ci_gate_contract.golden_standard_suite.required_markers keys must be non-empty strings", module_id))
+            continue
+        if not isinstance(required_markers, list) or not required_markers:
+            findings.append(
+                finding(
+                    f"project module ci_gate_contract.golden_standard_suite.required_markers.{path} must be a non-empty list",
+                    module_id,
+                )
+            )
+            continue
+        seen: set[str] = set()
+        for index, marker in enumerate(required_markers):
+            if not isinstance(marker, str) or not marker.strip():
+                findings.append(
+                    finding(
+                        f"project module ci_gate_contract.golden_standard_suite.required_markers.{path}[{index}] must be a non-empty string",
+                        module_id,
+                    )
+                )
+                continue
+            if marker in seen:
+                findings.append(
+                    finding(
+                        f"project module ci_gate_contract.golden_standard_suite.required_markers.{path} entries must be unique",
+                        module_id,
+                    )
+                )
+            seen.add(marker)
+    return findings
+
+
+def validate_local_gate_profile_contract(profile: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(profile, dict):
+        return [finding("project module ci_gate_contract.local_gate_profile must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    for key in ("profile_id", "manifest", "covered_by"):
+        findings.extend(require_string(profile, key, "project module ci_gate_contract.local_gate_profile", module_id))
+    profile_id = profile.get("profile_id")
+    if isinstance(profile_id, str) and profile_id.strip() and not LOCAL_GATE_PROFILE_ID_RE.match(profile_id.strip()):
+        findings.append(
+            finding(
+                "project module ci_gate_contract.local_gate_profile.profile_id must use lowercase dash-separated id syntax",
+                module_id,
+            )
+        )
+    covered_by = profile.get("covered_by")
+    if isinstance(covered_by, str) and covered_by.strip() and not CI_GATE_CLASSIFICATION_RE.match(covered_by.strip()):
+        findings.append(
+            finding(
+                "project module ci_gate_contract.local_gate_profile.covered_by must use `category / action` classification",
+                module_id,
+            )
+        )
+    markers, marker_findings = get_string_list(
+        profile,
+        "required_markers",
+        "project module ci_gate_contract.local_gate_profile",
+        module_id,
+    )
+    findings.extend(marker_findings)
+    if markers and len(markers) != len(unique_strings(markers)):
+        findings.append(finding("project module ci_gate_contract.local_gate_profile.required_markers entries must be unique", module_id))
+    return findings
+
+
+def validate_industry_gate_groups_contract(groups: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(groups, dict):
+        return [finding("project module ci_gate_contract.industry_gate_groups must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    for group_name, group in groups.items():
+        if not isinstance(group_name, str) or not group_name.strip():
+            findings.append(finding("project module ci_gate_contract.industry_gate_groups keys must be non-empty strings", module_id))
+            continue
+        group_name = group_name.strip()
+        if not CI_GATE_CLASSIFICATION_RE.match(group_name):
+            findings.append(
+                finding(
+                    f"project module ci_gate_contract.industry_gate_groups `{group_name}` must use `category / action` classification",
+                    module_id,
+                )
+            )
+        if not isinstance(group, dict):
+            findings.append(finding(f"project module ci_gate_contract.industry_gate_groups.{group_name} must be an object", module_id))
+            continue
+        covered_by = group.get("covered_by")
+        if not isinstance(covered_by, str) or not covered_by.strip():
+            findings.append(finding(f"project module ci_gate_contract.industry_gate_groups.{group_name}.covered_by must be a non-empty string", module_id))
+        elif not CI_GATE_CLASSIFICATION_RE.match(covered_by.strip()):
+            findings.append(
+                finding(
+                    f"project module ci_gate_contract.industry_gate_groups.{group_name}.covered_by must use `category / action` classification",
+                    module_id,
+                )
+            )
+        for key in ("industry_references", "required_markers"):
+            values, key_findings = get_string_list(
+                group,
+                key,
+                f"project module ci_gate_contract.industry_gate_groups.{group_name}",
+                module_id,
+            )
+            findings.extend(key_findings)
+            if values and len(values) != len(unique_strings(values)):
+                findings.append(
+                    finding(
+                        f"project module ci_gate_contract.industry_gate_groups.{group_name}.{key} entries must be unique",
+                        module_id,
+                    )
+                )
+    return findings
+
+
 def validate_pull_request_flow_policy(
     policy: Any,
     module_id: str,
@@ -513,7 +1181,7 @@ def validate_pull_request_flow_policy(
     findings: list[AuditFinding] = []
     if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
         findings.append(finding(f"module {policy_name}.enabled must be a boolean", module_id))
-    for key in ("target_repository_owners", "development_base_branches"):
+    for key in ("target_project_ids", "target_repository_owners", "development_base_branches"):
         values, key_findings = get_optional_string_list(policy, key, f"module {policy_name}", module_id)
         findings.extend(key_findings)
         if values and len(values) != len(unique_strings(values)):
@@ -678,6 +1346,36 @@ def validate_server_sensitive_boundary_policy(policy: Any, module_id: str) -> li
     return findings
 
 
+def validate_public_infrastructure_exposure_policy(policy: Any, module_id: str) -> list[AuditFinding]:
+    if not isinstance(policy, dict):
+        return [finding("module public_infrastructure_exposure_policy must be an object", module_id)]
+
+    findings: list[AuditFinding] = []
+    if "enabled" in policy and not isinstance(policy.get("enabled"), bool):
+        findings.append(finding("module public_infrastructure_exposure_policy.enabled must be a boolean", module_id))
+    findings.extend(require_string(policy, "name", "module public_infrastructure_exposure_policy", module_id))
+    for key in (
+        "target_project_ids",
+        "target_repository_owners",
+        "scan_globs",
+        "ignored_path_parts",
+        "restricted_path_globs",
+        "allowed_placeholder_markers",
+        "allowed_host_suffixes",
+        "disallowed_host_markers",
+        "disallowed_dsn_schemes",
+        "cloud_resource_markers",
+    ):
+        values, key_findings = get_optional_string_list(policy, key, "module public_infrastructure_exposure_policy", module_id)
+        findings.extend(key_findings)
+        if values and len(values) != len(unique_strings(values)):
+            findings.append(finding(f"module public_infrastructure_exposure_policy `{key}` entries must be unique", module_id))
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        findings.append(finding("module public_infrastructure_exposure_policy.max_file_bytes must be a positive integer", module_id))
+    return findings
+
+
 def validate_project_inventory(module: AuditModule) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     for key in REQUIRED_PROJECT_INVENTORY_FIELDS:
@@ -685,6 +1383,28 @@ def validate_project_inventory(module: AuditModule) -> list[AuditFinding]:
         findings.extend(key_findings)
         if values and len(values) != len(unique_strings(values)):
             findings.append(finding(f"project manifest inventory `{key}` entries must be unique", module.module_id))
+    return findings
+
+
+def validate_project_audit_profile(module: AuditModule) -> list[AuditFinding]:
+    profile = module.data.get("audit_profile")
+    if not isinstance(profile, str) or not profile.strip():
+        return [finding("project module must declare non-empty audit_profile", module.module_id)]
+
+    profile = profile.strip()
+    findings: list[AuditFinding] = []
+    if profile not in AUDIT_PROFILE_VALUES:
+        allowed = ", ".join(sorted(AUDIT_PROFILE_VALUES))
+        findings.append(finding(f"project module audit_profile `{profile}` must be one of: {allowed}", module.module_id))
+    if profile in BACKEND_AUDIT_PROFILES:
+        boundaries = module.data.get("security_boundaries")
+        if not isinstance(boundaries, list) or not any(isinstance(item, str) and item.strip() for item in boundaries):
+            findings.append(
+                finding(
+                    "backend-operations project module must declare non-empty security_boundaries",
+                    module.module_id,
+                )
+            )
     return findings
 
 
@@ -717,6 +1437,10 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_commercial_risk_policy(data["commercial_risk_policy"], module.module_id))
         if "manifest_inventory_policy" in data:
             findings.extend(validate_manifest_inventory_policy(data["manifest_inventory_policy"], module.module_id))
+        if "repository_module_policy" in data:
+            findings.extend(validate_repository_module_policy(data["repository_module_policy"], module.module_id))
+        if "repo_hygiene_policy" in data:
+            findings.extend(validate_repo_hygiene_policy(data["repo_hygiene_policy"], module.module_id))
         if "branch_policy" in data:
             findings.extend(validate_branch_policy(data["branch_policy"], module.module_id))
         if "local_audit_workflow_policy" in data:
@@ -733,14 +1457,19 @@ def validate_module_schema(module: AuditModule) -> list[AuditFinding]:
             findings.extend(validate_ip_exposure_policy(data["ip_exposure_policy"], module.module_id))
         if "server_sensitive_boundary_policy" in data:
             findings.extend(validate_server_sensitive_boundary_policy(data["server_sensitive_boundary_policy"], module.module_id))
-    else:
+        if "public_infrastructure_exposure_policy" in data:
+            findings.extend(validate_public_infrastructure_exposure_policy(data["public_infrastructure_exposure_policy"], module.module_id))
+    elif module.module_type == "project":
         project_ids, project_findings = get_string_list(data, "project_ids", "module", module.module_id)
         findings.extend(project_findings)
         if not project_ids:
             findings.append(finding("project module must declare at least one project id", module.module_id))
         elif len(project_ids) != len(unique_strings(project_ids)):
             findings.append(finding("project_ids entries must be unique", module.module_id))
+        findings.extend(validate_project_audit_profile(module))
         findings.extend(validate_project_inventory(module))
+        if "ci_gate_contract" in data:
+            findings.extend(validate_ci_gate_contract(data["ci_gate_contract"], module.module_id))
         findings.extend(validate_resource_classes(module, repo_files=None))
     return findings
 
@@ -770,7 +1499,7 @@ def validate_resource_classes(module: AuditModule, repo_files: list[str] | None)
             findings.append(finding(f"{context}: scope_globs entries must be unique", module.module_id))
         if repo_files is not None:
             for pattern in scope_globs:
-                if not matches(pattern, repo_files):
+                if not matches_scope_glob(pattern, repo_files):
                     findings.append(finding(f"{context}: scope glob matches no source file in target repo: {pattern}", module.module_id))
         for key in ("required_tests", "required_gates", "audit_risks"):
             _, key_findings = get_string_list(resource, key, context, module.module_id)
@@ -836,6 +1565,13 @@ def matches(pattern: str, files: list[str]) -> list[str]:
         if prefixed:
             return prefixed
     return [candidate for candidate in files if fnmatch.fnmatch(candidate, pattern)]
+
+
+def matches_scope_glob(pattern: str, files: list[str]) -> list[str]:
+    matched: list[str] = []
+    for alternative in [item.strip() for item in pattern.split("|") if item.strip()]:
+        matched.extend(matches(alternative, files))
+    return unique_strings(matched)
 
 
 def default_module(modules: list[AuditModule]) -> AuditModule | None:
@@ -1164,6 +1900,7 @@ def module_text(module: AuditModule) -> str:
     parts: list[str] = []
     for key in (
         "description",
+        "audit_profile",
         "technology_stack",
         "internal_components",
         "open_source_components",
@@ -1230,8 +1967,16 @@ def check_license_policy(context: AuditContext) -> list[AuditFinding]:
 
     target_project_ids = set(policy_strings(policy, "target_project_ids", []))
     aliases = {item for item in (context.project, context.repo_root.name) if item}
-    if target_project_ids and aliases.isdisjoint(target_project_ids):
+    if target_project_ids and "*" not in target_project_ids and aliases.isdisjoint(target_project_ids):
         return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", []))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"license policy: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
 
     module_id = default.module_id
     license_label = policy.get("license_label", "Apache-2.0")
@@ -1303,8 +2048,16 @@ def check_commercial_risk_policy(context: AuditContext, files: list[str]) -> lis
 
     target_project_ids = set(policy_strings(policy, "target_project_ids", []))
     aliases = {item for item in (context.project, context.repo_root.name) if item}
-    if target_project_ids and aliases.isdisjoint(target_project_ids):
+    if target_project_ids and "*" not in target_project_ids and aliases.isdisjoint(target_project_ids):
         return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", []))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"commercial risk policy: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
 
     module_id = default.module_id
     manifest_globs = policy_strings(policy, "manifest_globs", DEFAULT_DEPENDENCY_MANIFEST_GLOBS)
@@ -1399,7 +2152,7 @@ def check_secret_scan_policy(context: AuditContext, files: list[str]) -> list[Au
 
     target_project_ids = set(policy_strings(policy, "target_project_ids", []))
     aliases = {item for item in (context.project, context.repo_root.name) if item}
-    if target_project_ids and aliases.isdisjoint(target_project_ids):
+    if target_project_ids and "*" not in target_project_ids and aliases.isdisjoint(target_project_ids):
         return []
 
     max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
@@ -1422,6 +2175,69 @@ def path_matches_glob(relative_path: str, pattern: str) -> bool:
     if not any(ch in pattern for ch in "*?["):
         return relative_path == pattern or relative_path.startswith(pattern.rstrip("/") + "/")
     return fnmatch.fnmatch(relative_path, pattern)
+
+
+def path_matches_any_glob(relative_path: str, patterns: list[str]) -> bool:
+    return any(path_matches_glob(relative_path, pattern) for pattern in patterns)
+
+
+def check_repo_hygiene_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("repo_hygiene_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and "*" not in target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    ignored_parts = set(policy_strings(policy, "ignored_path_parts", sorted(DEFAULT_REPO_HYGIENE_IGNORED_PATH_PARTS)))
+    forbidden_path_globs = policy_strings(
+        policy,
+        "forbidden_path_globs",
+        DEFAULT_REPO_HYGIENE_FORBIDDEN_PATH_GLOBS,
+    )
+    allowed_path_globs = policy_strings(policy, "allowed_path_globs", [])
+    allowed_large_file_globs = policy_strings(policy, "allowed_large_file_globs", [])
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_REPO_HYGIENE_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        max_file_bytes = DEFAULT_REPO_HYGIENE_MAX_FILE_BYTES
+
+    findings: list[AuditFinding] = []
+    for relative in files:
+        if path_has_part(relative, ignored_parts) or path_matches_any_glob(relative, allowed_path_globs):
+            continue
+        if path_matches_any_glob(relative, forbidden_path_globs):
+            findings.append(
+                finding(
+                    f"repo hygiene policy: {relative} matches a forbidden repository-junk pattern; "
+                    "temporary files, caches, build outputs, logs, raw data dumps, archives, and local artifacts "
+                    "must not enter pull requests",
+                    default.module_id,
+                )
+            )
+            continue
+        path = context.repo_root / relative
+        if not path.is_file() or path_matches_any_glob(relative, allowed_large_file_globs):
+            continue
+        try:
+            size = path.stat().st_size
+        except OSError:
+            continue
+        if size > max_file_bytes:
+            findings.append(
+                finding(
+                    f"repo hygiene policy: {relative} is {size} bytes, above the {max_file_bytes} byte limit; "
+                    "large generated artifacts and raw data sets must stay outside the repository unless explicitly allowed",
+                    default.module_id,
+                )
+            )
+    return findings
 
 
 def allowed_service_ip_entries(policy: dict[str, Any]) -> list[dict[str, object]]:
@@ -1456,6 +2272,12 @@ def ip_occurrence_is_allowed(
 ) -> tuple[bool, str | None]:
     if allow_loopback and ip.is_loopback:
         return True, "loopback"
+    if ip.is_unspecified:
+        return True, "unspecified bind address"
+    if ip.version == 4 and str(ip) == "255.255.255.255":
+        return True, "broadcast address"
+    if any(ip in network for network in DOCUMENTATION_IP_NETWORKS):
+        return True, "documentation address"
     for entry in service_entries:
         ips = entry.get("ips", [])
         path_globs = entry.get("path_globs", [])
@@ -1574,6 +2396,219 @@ def check_ip_exposure_policy(context: AuditContext, files: list[str]) -> list[Au
                 text,
                 allow_loopback=allow_loopback,
                 service_entries=service_entries,
+                module_id=default.module_id,
+            )
+        )
+    return findings
+
+
+def clean_host(value: str) -> str:
+    host = value.strip().casefold().strip("[]").rstrip(".")
+    return host
+
+
+def host_is_allowed(host: str, allowed_suffixes: list[str]) -> bool:
+    clean = clean_host(host)
+    if not clean:
+        return False
+    try:
+        ip = ipaddress.ip_address(clean)
+    except ValueError:
+        ip = None
+    if ip is not None:
+        return ip.is_loopback
+    for suffix in allowed_suffixes:
+        allowed = clean_host(suffix.lstrip("*."))
+        if not allowed:
+            continue
+        if clean == allowed or clean.endswith(f".{allowed}"):
+            return True
+    return False
+
+
+def host_matches_marker(host: str, marker: str) -> bool:
+    normalized_host = re.sub(r"[^a-z0-9]+", " ", clean_host(host))
+    normalized_marker = re.sub(r"[^a-z0-9]+", " ", marker.casefold()).strip()
+    if not normalized_host or not normalized_marker:
+        return False
+    return re.search(rf"(?<![a-z0-9]){re.escape(normalized_marker)}(?![a-z0-9])", normalized_host) is not None
+
+
+def url_host(value: str) -> str | None:
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return None
+    return parsed.hostname
+
+
+def text_has_placeholder_marker(text: str, markers: list[str]) -> bool:
+    normalized = normalized_text(text)
+    return any(marker_group_matches(normalized, marker) for marker in markers)
+
+
+def connection_value_is_placeholder(value: str, markers: list[str]) -> bool:
+    return "..." in value or "<" in value or ">" in value or text_has_placeholder_marker(value, markers)
+
+
+def scan_public_infrastructure_file(
+    relative_path: str,
+    text: str,
+    *,
+    allowed_host_suffixes: list[str],
+    disallowed_host_markers: list[str],
+    disallowed_dsn_schemes: list[str],
+    cloud_resource_markers: list[str],
+    allowed_placeholder_markers: list[str],
+    module_id: str,
+) -> list[AuditFinding]:
+    findings: list[AuditFinding] = []
+    placeholder_context = path_matches_any_marker(relative_path, allowed_placeholder_markers)
+    normalized = normalized_text(text)
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if placeholder_context or text_has_placeholder_marker(line, allowed_placeholder_markers):
+            continue
+
+        for marker in cloud_resource_markers:
+            if normalized_text(marker) in normalized_text(line):
+                findings.append(
+                    finding(
+                        f"public infrastructure exposure: {relative_path}:{line_number} contains cloud resource marker `{marker}`; "
+                        "official service infrastructure identifiers must stay in private ops repositories or secret-management systems",
+                        module_id,
+                    )
+                )
+
+        kube_markers = ("apiVersion: v1", "clusters:", "current-context:", "users:")
+        if all(normalized_text(marker) in normalized for marker in kube_markers):
+            findings.append(
+                finding(
+                    f"public infrastructure exposure: {relative_path} looks like a kubeconfig; "
+                    "cluster contexts and user material must not be committed to public backend operations repositories",
+                    module_id,
+                )
+            )
+            break
+
+        for match in URL_RE.finditer(line):
+            value = match.group(0).rstrip(".,;:")
+            host = url_host(value)
+            if host is None or host_is_allowed(host, allowed_host_suffixes):
+                continue
+            for marker in disallowed_host_markers:
+                if not host_matches_marker(host, marker):
+                    continue
+                findings.append(
+                    finding(
+                        f"public infrastructure exposure: {relative_path}:{line_number} contains operational URL host `{host}` "
+                        f"matching marker `{marker}`; use placeholders such as example.invalid or move official service details private",
+                        module_id,
+                    )
+                )
+                break
+
+        for match in DSN_RE.finditer(line):
+            value = match.group(1).rstrip(",;:")
+            if connection_value_is_placeholder(value, allowed_placeholder_markers):
+                continue
+            parsed = urlparse(value)
+            scheme = parsed.scheme.casefold()
+            if scheme not in disallowed_dsn_schemes:
+                continue
+            host = parsed.hostname or ""
+            if host_is_allowed(host, allowed_host_suffixes):
+                continue
+            findings.append(
+                finding(
+                f"public infrastructure exposure: {relative_path}:{line_number} contains `{scheme}` service DSN; "
+                "database, queue, cache, SMTP, and broker endpoints must use placeholders in public backend operations repositories",
+                module_id,
+            )
+            )
+    return findings
+
+
+def check_public_infrastructure_exposure_policy(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    default = default_module(context.modules)
+    if default is None:
+        return []
+    policy = default.data.get("public_infrastructure_exposure_policy")
+    if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", DEFAULT_PUBLIC_INFRASTRUCTURE_EXPOSURE_PROJECT_IDS))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
+        return []
+
+    target_repository_owners = set(policy_strings(policy, "target_repository_owners", DEFAULT_PUBLIC_INFRASTRUCTURE_EXPOSURE_OWNERS))
+    if target_repository_owners:
+        owner, error = git_repository_owner(context.repo_root)
+        if owner is None:
+            return [finding(f"public infrastructure exposure: {error}; repository owner cannot be verified", default.module_id)]
+        if owner not in target_repository_owners:
+            return []
+
+    max_file_bytes = policy.get("max_file_bytes", DEFAULT_MAX_FILE_BYTES)
+    if not isinstance(max_file_bytes, int) or max_file_bytes <= 0:
+        max_file_bytes = DEFAULT_MAX_FILE_BYTES
+    scan_globs = policy_strings(policy, "scan_globs", DEFAULT_INFRASTRUCTURE_SCAN_GLOBS)
+    ignored_parts = set(policy_strings(policy, "ignored_path_parts", sorted(DEFAULT_INFRASTRUCTURE_IGNORED_PATH_PARTS)))
+    restricted_path_globs = policy_strings(policy, "restricted_path_globs", DEFAULT_RESTRICTED_INFRASTRUCTURE_GLOBS)
+    allowed_placeholder_markers = policy_strings(
+        policy,
+        "allowed_placeholder_markers",
+        DEFAULT_INFRASTRUCTURE_ALLOWED_PLACEHOLDER_MARKERS,
+    )
+    allowed_host_suffixes = policy_strings(policy, "allowed_host_suffixes", DEFAULT_INFRASTRUCTURE_ALLOWED_HOST_SUFFIXES)
+    disallowed_host_markers = policy_strings(policy, "disallowed_host_markers", DEFAULT_INFRASTRUCTURE_DISALLOWED_HOST_MARKERS)
+    disallowed_dsn_schemes = [scheme.casefold() for scheme in policy_strings(policy, "disallowed_dsn_schemes", DEFAULT_INFRASTRUCTURE_DISALLOWED_DSN_SCHEMES)]
+    cloud_resource_markers = policy_strings(policy, "cloud_resource_markers", DEFAULT_INFRASTRUCTURE_CLOUD_RESOURCE_MARKERS)
+
+    findings: list[AuditFinding] = []
+    restricted_files: list[str] = []
+    for pattern in restricted_path_globs:
+        restricted_files.extend(matches(pattern, files))
+    for relative in unique_strings(sorted(restricted_files)):
+        if path_has_part(relative, ignored_parts) or path_matches_any_marker(relative, allowed_placeholder_markers):
+            continue
+        findings.append(
+            finding(
+                f"public infrastructure exposure: {relative} matches restricted infrastructure path policy; "
+                "production ops, private deployment, kubeconfig, Terraform variable/state, and inventory material must stay private",
+                default.module_id,
+            )
+        )
+
+    scan_files: list[str] = []
+    for pattern in scan_globs:
+        scan_files.extend(matches(pattern, files))
+    for relative in unique_strings(sorted(scan_files)):
+        if path_has_part(relative, ignored_parts):
+            continue
+        path = context.repo_root / relative
+        if not path.is_file():
+            continue
+        try:
+            if path.stat().st_size > max_file_bytes:
+                continue
+            raw = path.read_bytes()
+        except OSError:
+            continue
+        if b"\0" in raw[:4096]:
+            continue
+        findings.extend(
+            scan_public_infrastructure_file(
+                relative,
+                raw.decode("utf-8", errors="replace"),
+                allowed_host_suffixes=allowed_host_suffixes,
+                disallowed_host_markers=disallowed_host_markers,
+                disallowed_dsn_schemes=disallowed_dsn_schemes,
+                cloud_resource_markers=cloud_resource_markers,
+                allowed_placeholder_markers=allowed_placeholder_markers,
                 module_id=default.module_id,
             )
         )
@@ -1785,6 +2820,229 @@ def check_local_delivery_framework_policy(context: AuditContext, files: list[str
     return findings
 
 
+def runner_matches_platform(runs_on: str, platform: str) -> bool:
+    markers = PLATFORM_CI_GATE_RUNNER_MARKERS.get(platform)
+    if not markers:
+        return True
+    normalized = runs_on.casefold()
+    return any(marker in normalized for marker in markers)
+
+
+def check_ci_gate_contract(context: AuditContext, files: list[str]) -> list[AuditFinding]:
+    if context.repo_root is None:
+        return []
+    project_modules = [module for module in context.modules if module.module_type == "project"]
+    if not any(isinstance(module.data.get("ci_gate_contract"), dict) for module in project_modules):
+        return []
+
+    jobs = workflow_jobs(context.repo_root, files)
+    jobs_by_name: dict[str, list[WorkflowJob]] = {}
+    for job in jobs:
+        jobs_by_name.setdefault(job.job_name, []).append(job)
+
+    findings: list[AuditFinding] = []
+    for module in project_modules:
+        contract = module.data.get("ci_gate_contract")
+        if not isinstance(contract, dict):
+            continue
+
+        platform_gates = contract.get("platform_adaptation", {})
+        if isinstance(platform_gates, dict):
+            for platform, gate_name in sorted(platform_gates.items()):
+                if not isinstance(platform, str) or not isinstance(gate_name, str):
+                    continue
+                platform = platform.strip()
+                gate_name = gate_name.strip()
+                matches = jobs_by_name.get(gate_name, [])
+                if len(matches) != 1:
+                    findings.append(
+                        finding(
+                            f"ci gate contract: platform `{platform}` must have exactly one gate named `{gate_name}`; found {len(matches)}",
+                            module.module_id,
+                        )
+                    )
+                    continue
+                job = matches[0]
+                if not runner_matches_platform(job.runs_on, platform):
+                    findings.append(
+                        finding(
+                            f"ci gate contract: `{gate_name}` in `{job.path}` runs on `{job.runs_on}`, "
+                            f"which does not match platform `{platform}`",
+                            module.module_id,
+                        )
+                    )
+
+        classified_gates = contract.get("classified_gates", [])
+        if isinstance(classified_gates, list):
+            for gate_name in classified_gates:
+                if not isinstance(gate_name, str):
+                    continue
+                gate_name = gate_name.strip()
+                matches = jobs_by_name.get(gate_name, [])
+                if len(matches) != 1:
+                    findings.append(
+                        finding(
+                            f"ci gate contract: classified gate `{gate_name}` must appear exactly once; found {len(matches)}",
+                            module.module_id,
+                        )
+                    )
+
+        test_gates = contract.get("test_gates", {})
+        if isinstance(test_gates, dict):
+            for key, gate_name in sorted(test_gates.items()):
+                if not isinstance(key, str) or not isinstance(gate_name, str):
+                    continue
+                gate_name = gate_name.strip()
+                matches = jobs_by_name.get(gate_name, [])
+                if len(matches) != 1:
+                    findings.append(
+                        finding(
+                            f"ci gate contract: test gate `{key}` must appear exactly once as `{gate_name}`; found {len(matches)}",
+                            module.module_id,
+                        )
+                    )
+
+        golden_suite = contract.get("golden_standard_suite")
+        golden_manifest_path: Path | None = None
+        if isinstance(golden_suite, dict):
+            manifest = golden_suite.get("manifest")
+            required_files = policy_strings(golden_suite, "required_files", [])
+            if isinstance(manifest, str) and manifest.strip():
+                manifest = manifest.strip()
+                golden_manifest_path = context.repo_root / manifest
+                required_files = unique_strings([manifest, *required_files])
+
+            for relative in required_files:
+                path = context.repo_root / relative
+                if path.is_file():
+                    continue
+                findings.append(
+                    finding(
+                        f"ci gate contract: golden standard suite requires `{relative}`",
+                        module.module_id,
+                    )
+                )
+
+            for relative, markers in policy_marker_map(golden_suite, "required_markers").items():
+                path = context.repo_root / relative
+                if not path.is_file():
+                    findings.append(
+                        finding(
+                            f"ci gate contract: golden standard suite marker file `{relative}` is missing",
+                            module.module_id,
+                        )
+                    )
+                    continue
+                text = normalized_text(path.read_text(encoding="utf-8", errors="replace"))
+                for marker in markers:
+                    if marker_group_matches(text, marker):
+                        continue
+                    findings.append(
+                        finding(
+                            f"ci gate contract: golden standard suite `{relative}` missing required marker `{marker}`",
+                            module.module_id,
+                        )
+                    )
+
+        local_profile = contract.get("local_gate_profile")
+        if isinstance(local_profile, dict):
+            profile_id = local_profile.get("profile_id")
+            manifest = local_profile.get("manifest")
+            covered_by = local_profile.get("covered_by")
+            if isinstance(covered_by, str) and covered_by.strip():
+                gate_name = covered_by.strip()
+                matches = jobs_by_name.get(gate_name, [])
+                if len(matches) != 1:
+                    findings.append(
+                        finding(
+                            f"ci gate contract: local gate profile must be covered by exactly one gate named `{gate_name}`; found {len(matches)}",
+                            module.module_id,
+                        )
+                    )
+            if isinstance(manifest, str) and manifest.strip():
+                relative = manifest.strip()
+                path = context.repo_root / relative
+                if not path.is_file():
+                    findings.append(
+                        finding(
+                            f"ci gate contract: local gate profile requires `{relative}`",
+                            module.module_id,
+                        )
+                    )
+                else:
+                    text = normalized_text(path.read_text(encoding="utf-8", errors="replace"))
+                    if isinstance(profile_id, str) and profile_id.strip() and not marker_group_matches(text, profile_id.strip()):
+                        findings.append(
+                            finding(
+                                f"ci gate contract: local gate profile `{relative}` missing profile id `{profile_id.strip()}`",
+                                module.module_id,
+                            )
+                        )
+                    if not marker_group_matches(text, "local gate profile"):
+                        findings.append(
+                            finding(
+                                f"ci gate contract: local gate profile `{relative}` missing `local gate profile` marker",
+                                module.module_id,
+                            )
+                        )
+                    for marker in policy_strings(local_profile, "required_markers", []):
+                        if marker_group_matches(text, marker):
+                            continue
+                        findings.append(
+                            finding(
+                                f"ci gate contract: local gate profile `{relative}` missing required marker `{marker}`",
+                                module.module_id,
+                            )
+                        )
+
+        industry_groups = contract.get("industry_gate_groups", {})
+        if isinstance(industry_groups, dict):
+            manifest_text = ""
+            if golden_manifest_path is not None and golden_manifest_path.is_file():
+                manifest_text = normalized_text(golden_manifest_path.read_text(encoding="utf-8", errors="replace"))
+            for group_name, group in sorted(industry_groups.items()):
+                if not isinstance(group_name, str) or not isinstance(group, dict):
+                    continue
+                clean_group_name = group_name.strip()
+                covered_by = group.get("covered_by")
+                if isinstance(covered_by, str) and covered_by.strip():
+                    gate_name = covered_by.strip()
+                    matches = jobs_by_name.get(gate_name, [])
+                    if len(matches) != 1:
+                        findings.append(
+                            finding(
+                                f"ci gate contract: industry gate group `{clean_group_name}` must be covered by exactly one gate named `{gate_name}`; found {len(matches)}",
+                                module.module_id,
+                            )
+                        )
+                if not manifest_text:
+                    if golden_manifest_path is not None:
+                        findings.append(
+                            finding(
+                                f"ci gate contract: industry gate group `{clean_group_name}` cannot verify missing golden manifest",
+                                module.module_id,
+                            )
+                        )
+                    continue
+                if clean_group_name and not marker_group_matches(manifest_text, clean_group_name):
+                    findings.append(
+                        finding(
+                            f"ci gate contract: golden standard suite missing industry gate group `{clean_group_name}`",
+                            module.module_id,
+                        )
+                    )
+                for marker in policy_strings(group, "required_markers", []):
+                    if marker_group_matches(manifest_text, marker):
+                        continue
+                    findings.append(
+                        finding(
+                            f"ci gate contract: industry gate group `{clean_group_name}` missing required marker `{marker}`",
+                            module.module_id,
+                        )
+                    )
+    return findings
+
+
 def check_branch_policy(context: AuditContext) -> list[AuditFinding]:
     if context.skip_branch_governance:
         return []
@@ -1845,6 +3103,11 @@ def check_pull_request_flow_policy(
         return []
     policy = default.data.get(policy_key)
     if not isinstance(policy, dict) or policy.get("enabled") is False:
+        return []
+
+    target_project_ids = set(policy_strings(policy, "target_project_ids", []))
+    aliases = {item for item in (context.project, context.repo_root.name) if item}
+    if target_project_ids and aliases.isdisjoint(target_project_ids):
         return []
 
     target_repository_owners = set(policy_strings(policy, "target_repository_owners", default_target_repository_owners))
@@ -2075,25 +3338,63 @@ def check_defect_records(context: AuditContext) -> list[AuditFinding]:
     return findings
 
 
-def validate_modules(modules: list[AuditModule]) -> list[AuditFinding]:
+def validate_modules(modules: list[AuditModule], *, enforce_repository_module_policy: bool = True) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
     seen: set[str] = set()
+    local_gate_profile_ids: dict[str, str] = {}
     for module in modules:
         if module.module_id in seen:
             findings.append(finding(f"duplicate loaded module id `{module.module_id}`"))
         seen.add(module.module_id)
         findings.extend(validate_module_schema(module))
-    if default_module(modules) is None:
+        if module.module_type == "project":
+            contract = module.data.get("ci_gate_contract")
+            local_profile = contract.get("local_gate_profile") if isinstance(contract, dict) else None
+            profile_id = local_profile.get("profile_id") if isinstance(local_profile, dict) else None
+            if isinstance(profile_id, str) and profile_id.strip():
+                clean_profile_id = profile_id.strip()
+                previous_module = local_gate_profile_ids.get(clean_profile_id)
+                if previous_module is not None:
+                    findings.append(
+                        finding(
+                            f"local gate profile id `{clean_profile_id}` is used by both `{previous_module}` and `{module.module_id}`",
+                            module.module_id,
+                        )
+                    )
+                local_gate_profile_ids[clean_profile_id] = module.module_id
+    default = default_module(modules)
+    if default is None:
         findings.append(finding("module stack must include a default module"))
+    elif enforce_repository_module_policy:
+        policy = default.data.get("repository_module_policy")
+        if isinstance(policy, dict) and policy.get("enabled") is not False:
+            required_project_ids = policy_strings(policy, "required_project_ids", [])
+            covered_project_ids: set[str] = set()
+            for module in modules:
+                if module.module_type == "default":
+                    continue
+                project_ids = module.data.get("project_ids", [])
+                if isinstance(project_ids, list):
+                    covered_project_ids.update(item for item in project_ids if isinstance(item, str) and item.strip())
+            for project_id in required_project_ids:
+                if project_id not in covered_project_ids:
+                    findings.append(
+                        finding(
+                            f"repository module policy: required project id `{project_id}` has no project module coverage",
+                            default.module_id,
+                        )
+                    )
     return findings
 
 
 def gate(context: AuditContext) -> list[AuditFinding]:
-    findings = validate_modules(context.modules)
+    findings = validate_modules(context.modules, enforce_repository_module_policy=False)
     if context.repo_root is not None:
         files = repo_files(context.repo_root)
         findings.extend(check_local_audit_workflow_policy(context, files))
         findings.extend(check_local_delivery_framework_policy(context, files))
+        findings.extend(check_ci_gate_contract(context, files))
+        findings.extend(check_repo_hygiene_policy(context, files))
         for module in context.modules:
             if module.module_type != "default":
                 findings.extend(validate_resource_classes(module, files))
@@ -2103,6 +3404,7 @@ def gate(context: AuditContext) -> list[AuditFinding]:
         findings.extend(check_license_policy(context))
         findings.extend(check_commercial_risk_policy(context, files))
         findings.extend(check_ip_exposure_policy(context, files))
+        findings.extend(check_public_infrastructure_exposure_policy(context, files))
         findings.extend(check_secret_scan_policy(context, files))
         findings.extend(check_server_sensitive_boundary_policy(context, files))
         findings.extend(check_defect_records(context))

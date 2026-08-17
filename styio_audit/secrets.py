@@ -47,8 +47,13 @@ IGNORED_FILE_SUFFIXES = {
 }
 PLACEHOLDER_TERMS = {
     "changeme",
+    "base64-encoded",
+    "base64_encoded",
+    "development",
+    "dev-",
     "dummy",
     "example-token",
+    "dev-token",
     "dev_token",
     "example",
     "fake",
@@ -188,8 +193,24 @@ def should_accept(rule: SecretRule, value: str, line: str) -> bool:
     return True
 
 
+def is_non_secret_reference(value: str) -> bool:
+    lowered = value.casefold()
+    return lowered.startswith(
+        (
+            "$env:",
+            "env:",
+            "process.env.",
+            "import.meta.env.",
+            "os.environ",
+            "current.",
+            "this.",
+            "settings.",
+        )
+    )
+
+
 def is_probable_source_identifier(value: str) -> bool:
-    return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?", value) is not None
+    return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*", value) is not None
 
 
 def scan_line(text: str, *, path: str, line_number: int, commit: str | None = None) -> list[SecretMatch]:
@@ -200,7 +221,11 @@ def scan_line(text: str, *, path: str, line_number: int, commit: str | None = No
         for match in rule.pattern.finditer(text):
             value = match.group(rule.value_group)
             quote = match.groupdict().get("quote", "")
-            if rule.rule_id == "credential-assignment" and not quote and is_probable_source_identifier(value):
+            if rule.rule_id == "credential-assignment" and not quote and match.end() < len(text) and text[match.end()] == ">":
+                continue
+            if rule.rule_id == "credential-assignment" and not quote and (
+                is_probable_source_identifier(value) or is_non_secret_reference(value)
+            ):
                 continue
             if not should_accept(rule, value, text):
                 continue

@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "module_id": "for-styio-all-in-one",
+  "module_type": "project",
+  "description": "Repository module for styio-all-in-one ecosystem monorepo imports and cross-repository integration checks.",
+  "last_updated": "2026-06-29",
+  "project_ids": [
+    "styio-all-in-one",
+    "all-in-one",
+    "monorepo"
+  ],
+  "audit_profile": "ecosystem-aggregate",
+  "technology_stack": [
+    "CMake monorepo",
+    "Styio compiler source import",
+    "Pafio package-manager source import",
+    "Vityo frontend source import"
+  ],
+  "internal_components": [
+    "monorepo_root_build",
+    "styio_import",
+    "pafio_import",
+    "vityo_import",
+    "workspace_ci"
+  ],
+  "open_source_components": [
+    "CMake",
+    "Flutter toolchain references",
+    "Node.js package manifests where imported modules require them"
+  ],
+  "dependency_manifests": [
+    "CMakeLists.txt",
+    "styio/CMakeLists.txt",
+    "styio-pafio/CMakeLists.txt",
+    "vityo/frontend/vityo_app/pubspec.yaml",
+    "vityo/prototype/package.json"
+  ],
+  "ci_gate_contract": {
+    "platform_adaptation": {
+      "linux": "platform-adaptation / linux-ci-gate"
+    },
+    "test_gates": {
+      "smoke": "test / smoke",
+      "golden_standard": "test / golden-standard"
+    },
+    "submit_readiness": "A styio-all-in-one integration snapshot is submittable when `platform-adaptation / linux-ci-gate`, `test / smoke`, and `test / golden-standard` all pass.",
+    "golden_standard_suite": {
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "required_files": [
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md"
+      ],
+      "required_markers": {
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md": [
+          "test / smoke",
+          "test / golden-standard",
+          "submit readiness"
+        ]
+      }
+    },
+    "industry_gate_groups": {
+      "ecosystem / integration-quality": {
+        "covered_by": "test / golden-standard",
+        "industry_references": [
+          "LLVM Testing Infrastructure Guide: whole-program tests and reference-output comparison",
+          "SLSA producing artifacts: consistent build process across integrated outputs"
+        ],
+        "required_markers": [
+          "integrated targets",
+          "pipeline",
+          "parser shadow",
+          "security",
+          "soak"
+        ]
+      }
+    },
+    "local_gate_profile": {
+      "profile_id": "styio-all-in-one-integrated-snapshot-profile",
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "covered_by": "test / golden-standard",
+      "required_markers": [
+        "repo-owned adaptation",
+        "integrated targets",
+        "parser shadow",
+        "security",
+        "soak"
+      ]
+    }
+  },
+  "resource_classes": [
+    {
+      "id": "ecosystem_monorepo_imports",
+      "owner": "Ecosystem Integration",
+      "description": "Owns imported Styio, Pafio, and Vityo source trees inside the all-in-one repository.",
+      "scope_globs": [
+        "CMakeLists.txt",
+        ".github/workflows/**",
+        "styio/**",
+        "styio-pafio/**",
+        "vityo/**"
+      ],
+      "copying_policy": "Imported upstream source must preserve repository-local licenses, notices, and module boundaries.",
+      "concurrency_policy": "Cross-repository imports must be updated through explicit promotion commits instead of silent partial tree replacement.",
+      "nullability_policy": "Missing imported project trees are blocking because the monorepo cannot represent ecosystem integration without them.",
+      "cleanup_policy": "Generated build outputs and imported transient artifacts must stay outside tracked source.",
+      "state_machine": {
+        "source": "Monorepo import and integration lifecycle.",
+        "states": [
+          "imported",
+          "validated",
+          "promoted"
+        ],
+        "transitions": [
+          {
+            "from": "imported",
+            "to": "validated",
+            "on": "run monorepo ci and audit gates"
+          },
+          {
+            "from": "validated",
+            "to": "promoted",
+            "on": "promote integrated source snapshot"
+          }
+        ],
+        "invalid_operations": [
+          "drop imported license evidence",
+          "replace one project tree without integration evidence"
+        ]
+      },
+      "required_tests": [
+        "monorepo build and smoke tests for imported Styio, Pafio, and Vityo surfaces"
+      ],
+      "required_gates": [
+        "styio-audit common gate",
+        "repository-local monorepo CI"
+      ],
+      "audit_risks": [
+        "stale upstream import",
+        "license notice drift",
+        "cross-project integration bypass"
+      ]
+    }
+  ]
+}

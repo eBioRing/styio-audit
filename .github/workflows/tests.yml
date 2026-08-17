@@ -1,0 +1,55 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-smoke:
+    name: test / smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout styio-audit
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13.5"
+
+      - name: Run smoke tests
+        run: python3 -m unittest discover -s tests -v
+
+  test-golden-standard:
+    name: test / golden-standard
+    needs: [test-smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout styio-audit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13.5"
+
+      - name: Run golden-standard tests
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 -m styio_audit.cli validate-modules
+          python3 -m styio_audit.cli gate --repo . --project styio-audit --framework-only --skip-branch-governance

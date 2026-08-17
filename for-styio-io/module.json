@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "module_id": "for-styio-io",
+  "module_type": "project",
+  "description": "Repository module for the styio.io website, release-root metadata, static assets, and GitHub Pages deployment surface.",
+  "last_updated": "2026-06-29",
+  "project_ids": [
+    "styio.io",
+    "styio-io",
+    "website"
+  ],
+  "audit_profile": "static-website",
+  "technology_stack": [
+    "Static HTML/CSS/JavaScript website",
+    "GitHub Pages",
+    "Release-root packaging scripts"
+  ],
+  "internal_components": [
+    "marketing_site",
+    "documentation_pages",
+    "release_root_manifest",
+    "pages_workflows",
+    "static_assets"
+  ],
+  "open_source_components": [
+    "Browser JavaScript",
+    "GitHub Pages",
+    "Shell packaging scripts"
+  ],
+  "dependency_manifests": [
+    "README.md",
+    "release-index.json"
+  ],
+  "ci_gate_contract": {
+    "test_gates": {
+      "smoke": "test / smoke",
+      "golden_standard": "test / golden-standard"
+    },
+    "submit_readiness": "A styio.io version is submittable when `test / smoke` and `test / golden-standard` both pass.",
+    "golden_standard_suite": {
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "required_files": [
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md"
+      ],
+      "required_markers": {
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md": [
+          "test / smoke",
+          "test / golden-standard",
+          "submit readiness"
+        ]
+      }
+    },
+    "industry_gate_groups": {
+      "website / release-root": {
+        "covered_by": "test / golden-standard",
+        "industry_references": [
+          "GitHub rulesets: branch, tag, and push restrictions for protected release surfaces",
+          "OpenSSF Scorecard: CI tests and binary-artifact hygiene before merge"
+        ],
+        "required_markers": [
+          "static site",
+          "release-root validation",
+          "install docs",
+          "release index",
+          "hosted tool entrypoints"
+        ]
+      }
+    },
+    "local_gate_profile": {
+      "profile_id": "styio-io-release-root-site-profile",
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "covered_by": "test / golden-standard",
+      "required_markers": [
+        "repo-owned adaptation",
+        "release-root validation",
+        "release index",
+        "hosted tool entrypoints",
+        "install docs"
+      ]
+    }
+  },
+  "resource_classes": [
+    {
+      "id": "website_release_surface",
+      "owner": "Website and Release Hosting",
+      "description": "Owns public website pages, release-root metadata, static assets, and Pages workflows.",
+      "scope_globs": [
+        "index.html",
+        "404.html",
+        "docs/**",
+        "assets/**",
+        "scripts/**",
+        "tools/**",
+        ".github/workflows/**",
+        "release-index.json",
+        "CNAME"
+      ],
+      "copying_policy": "Website content may publish public release metadata but must not expose private signing material, deployment credentials, or unpublished backend endpoints.",
+      "concurrency_policy": "Release-root metadata, generated pages, and deployment workflows should update as one auditable release surface.",
+      "nullability_policy": "Missing website entrypoints or release index makes the public release surface incomplete.",
+      "cleanup_policy": "Generated site packages and local deploy credentials must stay outside tracked source.",
+      "state_machine": {
+        "source": "Website and release-root lifecycle.",
+        "states": [
+          "authored",
+          "validated",
+          "deployed"
+        ],
+        "transitions": [
+          {
+            "from": "authored",
+            "to": "validated",
+            "on": "site smoke and release-root validation"
+          },
+          {
+            "from": "validated",
+            "to": "deployed",
+            "on": "GitHub Pages deployment"
+          }
+        ],
+        "invalid_operations": [
+          "publish private signing material",
+          "deploy release metadata without validation"
+        ]
+      },
+      "required_tests": [
+        "site smoke test and release-root validation"
+      ],
+      "required_gates": [
+        "styio-audit common gate",
+        "Pages deployment gate"
+      ],
+      "audit_risks": [
+        "release metadata drift",
+        "DNS configuration leakage",
+        "private deployment material exposure"
+      ]
+    }
+  ]
+}

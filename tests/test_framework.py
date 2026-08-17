@@ -57,7 +57,7 @@ class FrameworkTests(unittest.TestCase):
                 "branch_policy": {
                     "enabled": True,
                     "target_project_ids": ["demo"],
-                    "required_branches": ["stable", "nightly", "ai-dev"],
+                    "required_branches": ["release", "stable", "nightly"],
                 },
             },
         )
@@ -78,11 +78,10 @@ class FrameworkTests(unittest.TestCase):
                 "downstream_branch_flow_policy": {
                     "enabled": True,
                     "target_repository_owners": ["Unka-Malloc"],
-                    "development_base_branches": ["ai-dev", "nightly"],
+                    "development_base_branches": ["nightly"],
                     "required_pull_request_flows": [
-                        {"head": "ai-dev", "base": "nightly"},
                         {"head": "nightly", "base": "stable"},
-                        {"head": "stable", "base": "main"},
+                        {"head": "stable", "base": "release"},
                     ],
                 },
             },
@@ -103,12 +102,11 @@ class FrameworkTests(unittest.TestCase):
                 "required_checklist_markers": ["marker"],
                 "upstream_branch_flow_policy": {
                     "enabled": True,
-                    "target_repository_owners": ["eBioRing"],
-                    "development_base_branches": ["ai-dev", "nightly"],
+                    "target_repository_owners": ["SymPolicy"],
+                    "development_base_branches": ["nightly"],
                     "required_pull_request_flows": [
-                        {"head": "ai-dev", "base": "nightly"},
                         {"head": "nightly", "base": "stable"},
-                        {"head": "stable", "base": "main"},
+                        {"head": "stable", "base": "release"},
                     ],
                 },
             },
@@ -125,6 +123,7 @@ class FrameworkTests(unittest.TestCase):
                 "description": "Demo project module.",
                 "last_updated": "2026-04-25",
                 "project_ids": ["demo"],
+                "audit_profile": "example-basic",
                 "technology_stack": ["Demo runtime"],
                 "internal_components": ["Demo component"],
                 "open_source_components": ["Demo OSS"],
@@ -178,7 +177,7 @@ class FrameworkTests(unittest.TestCase):
             "      - name: Checkout released styio-audit policy\n"
             "        uses: actions/checkout@v5\n"
             "        with:\n"
-            "          repository: eBioRing/styio-audit\n"
+            "          repository: SymPolicy/styio-audit\n"
             "          ref: stable\n"
             "          path: styio-audit\n"
             "      - name: Run released styio-audit gate\n"
@@ -203,7 +202,7 @@ class FrameworkTests(unittest.TestCase):
                     "enabled": True,
                     "name": "Authoritative local workflow policy.",
                     "target_project_ids": ["demo"],
-                    "target_repository_owners": ["eBioRing"],
+                    "target_repository_owners": ["SymPolicy"],
                     "workflow_path": ".github/workflows/styio-audit.yml",
                     "template_path": "templates/workflows/styio-audit-local.yml",
                 },
@@ -227,7 +226,7 @@ class FrameworkTests(unittest.TestCase):
                     "enabled": True,
                     "name": "Local delivery framework contract.",
                     "target_project_ids": ["demo"],
-                    "target_repository_owners": ["eBioRing"],
+                    "target_repository_owners": ["SymPolicy"],
                     "required_files": [
                         ".github/workflows/styio-ci-gate.yml",
                         "scripts/workflow-scheduler.py",
@@ -260,6 +259,140 @@ class FrameworkTests(unittest.TestCase):
             "scripts/workflow-scheduler.py",
             "WORKFLOW_DOCS = ()\n"
             "PROFILES = ()\n",
+        )
+
+    def _write_ci_gate_contract_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-06-29",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+            },
+        )
+
+    def _write_ci_gate_contract_project_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "for-demo/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "for-demo",
+                "module_type": "project",
+                "description": "Demo project module.",
+                "last_updated": "2026-06-29",
+                "project_ids": ["demo"],
+                "audit_profile": "client-tooling",
+                "technology_stack": ["Demo client"],
+                "internal_components": ["Demo workflow"],
+                "open_source_components": ["GitHub Actions"],
+                "dependency_manifests": [".github/workflows/*.yml"],
+                "ci_gate_contract": {
+                    "platform_adaptation": {
+                        "linux": "platform-adaptation / linux-ci-gate",
+                        "windows": "platform-adaptation / windows-ci-gate",
+                    },
+                    "test_gates": {
+                        "smoke": "test / smoke",
+                        "golden_standard": "test / golden-standard",
+                    },
+                    "classified_gates": ["client / release / marketplace"],
+                    "submit_readiness": "A version is submittable when `test / smoke` and `test / golden-standard` both pass.",
+                    "golden_standard_suite": {
+                        "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+                        "required_files": ["docs/specs/GOLDEN-STANDARD-TEST-SUITE.md"],
+                        "required_markers": {
+                            "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md": [
+                                "test / smoke",
+                                "test / golden-standard",
+                                "submit readiness",
+                            ]
+                        },
+                    },
+                    "local_gate_profile": {
+                        "profile_id": "demo-extension-host-profile",
+                        "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+                        "covered_by": "test / golden-standard",
+                        "required_markers": [
+                            "repo-owned adaptation",
+                            "demo-extension-host-profile",
+                            "extension host smoke",
+                        ],
+                    },
+                    "industry_gate_groups": {
+                        "ide / extension-quality": {
+                            "covered_by": "test / golden-standard",
+                            "industry_references": [
+                                "VS Code extension testing",
+                                "VS Code extension publishing",
+                            ],
+                            "required_markers": [
+                                "ide / extension-quality",
+                                "extension host test",
+                                "packaged extension",
+                                "release preflight",
+                            ],
+                        }
+                    },
+                },
+                "resource_classes": [
+                    {
+                        "id": "workflow_gate_surface",
+                        "owner": "Delivery",
+                        "description": "Owns classified workflow gate names.",
+                        "scope_globs": [".github/workflows/**"],
+                        "copying_policy": "Workflow entries are edited directly.",
+                        "concurrency_policy": "Gate names are unique.",
+                        "nullability_policy": "Missing gates fail audit.",
+                        "cleanup_policy": "Obsolete gates are removed.",
+                        "state_machine": {
+                            "source": "GitHub Actions workflows.",
+                            "states": ["declared", "present"],
+                            "transitions": [{"from": "declared", "to": "present", "on": "workflow job exists"}],
+                            "invalid_operations": ["duplicate gate"],
+                        },
+                        "required_tests": ["styio-audit gate"],
+                        "required_gates": ["platform-adaptation / linux-ci-gate"],
+                        "audit_risks": ["missing required check"],
+                    }
+                ],
+            },
+        )
+
+    def _write_ci_gate_contract_test_workflow(self, repo_root: Path) -> None:
+        self._write_file(
+            repo_root,
+            ".github/workflows/tests.yml",
+            "name: tests\n"
+            "jobs:\n"
+            "  smoke:\n"
+            "    name: test / smoke\n"
+            "    runs-on: ubuntu-24.04\n"
+            "    steps:\n"
+            "      - run: true\n"
+            "  golden:\n"
+            "    name: test / golden-standard\n"
+            "    runs-on: ubuntu-24.04\n"
+            "    steps:\n"
+            "      - run: true\n",
+        )
+
+    def _write_ci_gate_contract_golden_manifest(self, repo_root: Path) -> None:
+        self._write_file(
+            repo_root,
+            "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+            "# Golden Standard Test Suite\n\n"
+            "- `test / smoke` covers the fast pre-submit check.\n"
+            "- `test / golden-standard` covers the full submit readiness check.\n"
+            "- Local Gate Profile: repo-owned adaptation `demo-extension-host-profile` covers extension host smoke.\n"
+            "- `ide / extension-quality` covers extension host test, packaged extension, and release preflight evidence.\n"
+            "- Submit readiness requires both gates to pass.\n",
         )
 
     def _write_policy_default_module(self, framework_root: Path) -> None:
@@ -350,6 +483,33 @@ class FrameworkTests(unittest.TestCase):
             },
         )
 
+    def _write_repo_hygiene_default_module(self, framework_root: Path) -> None:
+        self._write_json(
+            framework_root,
+            "modules/default/module.json",
+            {
+                "schema_version": 1,
+                "module_id": "default",
+                "module_type": "default",
+                "description": "Common audit rules.",
+                "last_updated": "2026-06-29",
+                "required_audit_fields": ["**Severity:**"],
+                "required_closure_fields": ["**Closure evidence:**"],
+                "required_checklist_markers": ["marker"],
+                "repo_hygiene_policy": {
+                    "enabled": True,
+                    "name": "Repository hygiene.",
+                    "target_project_ids": ["demo"],
+                    "ignored_path_parts": [".git"],
+                    "forbidden_path_globs": ["**/__pycache__/**", "**/*.tmp", "**/*.sqlite", "**/*.log"],
+                    "allowed_path_globs": [],
+                    "allowed_large_file_globs": [],
+                    "max_file_bytes": 64,
+                    "source_boundary": "Temporary files and generated data must not enter PRs.",
+                },
+            },
+        )
+
     def _run_demo_gate(self, framework_root: Path, repo_root: Path, *, skip_branch_governance: bool = False):
         modules = load_stack(framework_root, "demo", repo_root)
         return gate(
@@ -367,11 +527,82 @@ class FrameworkTests(unittest.TestCase):
         self.assertEqual([], [finding.message for finding in findings])
 
     def test_project_stack_loads_default_and_project_module(self) -> None:
-        stack = load_stack(ROOT, "styio-spio", Path("/tmp/styio-spio"))
+        stack = load_stack(ROOT, "styio-pafio", Path("/tmp/styio-pafio"))
         module_ids = [module.module_id for module in stack]
         self.assertIn("default", module_ids)
-        self.assertIn("for-styio-spio", module_ids)
+        self.assertIn("for-pafio", module_ids)
         self.assertNotIn("for-styio-view", module_ids)
+
+    def test_current_ecosystem_repositories_load_common_and_business_modules(self) -> None:
+        expected = {
+            "Styio": "for-styio",
+            "Pafio": "for-pafio",
+            "Vityo": "for-styio-view",
+            "Styio-Cloud": "for-styio-cloud",
+            "styio-all-in-one": "for-styio-all-in-one",
+            "styio-audit": "for-styio-audit",
+            "styio-benchmark": "for-styio-benchmark",
+            "styio-book": "for-styio-book",
+            "styio-community": "for-styio-community",
+            "styio-dev-doc": "for-styio-dev-doc",
+            "styio-dev-env": "for-styio-dev-env",
+            "styio-example": "for-styio-example",
+            "styio-ext-vsc": "for-styio-ext-vsc",
+            "styio.io": "for-styio-io",
+        }
+        workspace_root = ROOT.parent
+        for repo_name, expected_module in expected.items():
+            with self.subTest(repo_name=repo_name):
+                stack = load_stack(ROOT, repo_name, workspace_root / repo_name)
+                module_ids = [module.module_id for module in stack]
+                self.assertEqual("default", module_ids[0])
+                self.assertIn(expected_module, module_ids)
+
+    def test_repo_hygiene_policy_rejects_junk_files_and_large_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_repo_hygiene_default_module(framework_root)
+            self._write_file(repo_root, "src/main.py", "print('ok')\n")
+            self._write_file(repo_root, "src/__pycache__/main.cpython-313.pyc", "bytecode\n")
+            self._write_file(repo_root, "scratch/session.tmp", "temporary\n")
+            self._write_file(repo_root, "data/local.sqlite", "sqlite data\n")
+            self._write_file(repo_root, "docs/huge.md", "x" * 65)
+            self._init_git_repo(repo_root)
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+
+            self.assertTrue(any("src/__pycache__/main.cpython-313.pyc" in message for message in messages))
+            self.assertTrue(any("scratch/session.tmp" in message for message in messages))
+            self.assertTrue(any("data/local.sqlite" in message for message in messages))
+            self.assertTrue(any("docs/huge.md is 65 bytes" in message for message in messages))
+
+    def test_repository_module_policy_rejects_missing_business_module(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp)
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "repository_module_policy": {
+                        "enabled": True,
+                        "name": "Repository module coverage.",
+                        "required_project_ids": ["demo"],
+                    },
+                },
+            )
+
+            messages = [finding.message for finding in validate_modules(load_all_modules(framework_root))]
+            self.assertIn("repository module policy: required project id `demo` has no project module coverage", messages)
 
     def test_schema_validation_rejects_invalid_module_type(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -400,6 +631,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Broken project module.",
                     "last_updated": "2026-04-22",
                     "project_ids": ["demo"],
+                    "audit_profile": "example-basic",
                 },
             )
             findings = validate_modules(load_all_modules(framework_root))
@@ -433,6 +665,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo module.",
                     "last_updated": "2026-04-22",
                     "project_ids": ["demo"],
+                    "audit_profile": "example-basic",
                 },
             )
             self._write_file(
@@ -474,6 +707,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo module.",
                     "last_updated": "2026-04-22",
                     "project_ids": ["demo"],
+                    "audit_profile": "example-basic",
                 },
             )
             self._write_file(
@@ -516,6 +750,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo project module.",
                     "last_updated": "2026-04-22",
                     "project_ids": ["demo"],
+                    "audit_profile": "example-basic",
                     "technology_stack": ["Demo runtime"],
                     "internal_components": ["Demo resource owner"],
                     "open_source_components": ["Demo OSS dependency"],
@@ -600,6 +835,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo project module.",
                     "last_updated": "2026-04-24",
                     "project_ids": ["demo"],
+                    "audit_profile": "example-basic",
                     "resource_classes": [
                         {
                             "id": "demo_resource",
@@ -630,6 +866,65 @@ class FrameworkTests(unittest.TestCase):
             self.assertTrue(any("`open_source_components` must be a non-empty list" in message for message in messages))
             self.assertTrue(any("`dependency_manifests` must be a non-empty list" in message for message in messages))
 
+    def test_backend_audit_profile_requires_security_boundaries(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp)
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                },
+            )
+            self._write_json(
+                framework_root,
+                "for-demo/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "for-demo",
+                    "module_type": "project",
+                    "description": "Demo backend operations module.",
+                    "last_updated": "2026-06-29",
+                    "project_ids": ["demo"],
+                    "audit_profile": "backend-operations",
+                    "technology_stack": ["Demo backend"],
+                    "internal_components": ["Demo server"],
+                    "open_source_components": ["Python standard library"],
+                    "dependency_manifests": ["pyproject.toml"],
+                    "resource_classes": [
+                        {
+                            "id": "demo_backend",
+                            "owner": "Backend",
+                            "description": "Demo backend resource.",
+                            "scope_globs": ["src/**"],
+                            "copying_policy": "No secrets are copied.",
+                            "concurrency_policy": "Requests are serialized in tests.",
+                            "nullability_policy": "Missing config fails closed.",
+                            "cleanup_policy": "Temporary state is deleted.",
+                            "state_machine": {
+                                "source": "Demo backend lifecycle.",
+                                "states": ["idle", "running"],
+                                "transitions": [{"from": "idle", "to": "running", "on": "start"}],
+                                "invalid_operations": ["start without config"],
+                            },
+                            "required_tests": ["backend smoke test"],
+                            "required_gates": ["backend gate"],
+                            "audit_risks": ["missing backend boundary"],
+                        }
+                    ],
+                },
+            )
+
+            messages = [finding.message for finding in validate_modules(load_all_modules(framework_root))]
+            self.assertIn("backend-operations project module must declare non-empty security_boundaries", messages)
+
     def test_branch_policy_accepts_required_delivery_branches(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
@@ -638,7 +933,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_branch_policy_default_module(framework_root)
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root, branches=["stable", "nightly", "ai-dev"])
+            self._init_git_repo(repo_root, branches=["release", "stable", "nightly"])
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
@@ -651,10 +946,10 @@ class FrameworkTests(unittest.TestCase):
             self._write_branch_policy_default_module(framework_root)
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root, branches=["stable", "ai-dev"])
+            self._init_git_repo(repo_root, branches=["stable", "nightly"])
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("missing required branch `nightly`" in message for message in messages))
+            self.assertTrue(any("missing required branch `release`" in message for message in messages))
 
     def test_skip_branch_governance_suppresses_branch_policy_findings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -664,7 +959,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_branch_policy_default_module(framework_root)
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root, branches=["stable", "ai-dev"])
+            self._init_git_repo(repo_root, branches=["stable", "nightly"])
 
             skipped = self._run_demo_gate(framework_root, repo_root, skip_branch_governance=True)
             self.assertEqual([], [finding.message for finding in skipped])
@@ -689,8 +984,8 @@ class FrameworkTests(unittest.TestCase):
                     "branch_policy": {
                         "enabled": True,
                         "target_project_ids": ["demo"],
-                        "target_repository_owners": ["eBioRing"],
-                        "required_branches": ["stable", "nightly", "ai-dev"],
+                        "target_repository_owners": ["SymPolicy"],
+                        "required_branches": ["release", "stable", "nightly"],
                     },
                 },
             )
@@ -735,7 +1030,7 @@ class FrameworkTests(unittest.TestCase):
                 "      - name: Checkout released styio-audit policy\n"
                 "        uses: actions/checkout@v5\n"
                 "        with:\n"
-                "          repository: eBioRing/styio-audit\n"
+                "          repository: SymPolicy/styio-audit\n"
                 "          ref: stable\n"
                 "          path: styio-audit\n"
                 "      - name: Run released styio-audit gate\n"
@@ -743,7 +1038,7 @@ class FrameworkTests(unittest.TestCase):
                 "        run: python3 ../styio-audit/bin/styio-audit gate --repo . --project demo\n",
             )
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
@@ -758,7 +1053,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing `.github/workflows/styio-audit.yml`" in message for message in messages))
@@ -781,7 +1076,7 @@ class FrameworkTests(unittest.TestCase):
                 "  workflow_dispatch:\n",
             )
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("does not match authoritative template" in message for message in messages))
@@ -796,7 +1091,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._write_local_delivery_framework_files(repo_root)
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
@@ -811,7 +1106,7 @@ class FrameworkTests(unittest.TestCase):
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._write_file(repo_root, "scripts/workflow-scheduler.py", "WORKFLOW_DOCS = ()\nPROFILES = ()\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing required file `.github/workflows/styio-ci-gate.yml`" in message for message in messages))
@@ -831,73 +1126,387 @@ class FrameworkTests(unittest.TestCase):
             )
             self._write_file(repo_root, "scripts/workflow-scheduler.py", "WORKFLOW_DOCS = ()\nPROFILES = ()\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any("missing required marker `workflow-scheduler.py run --profile ci-prebuild`" in message for message in messages))
 
-    def test_downstream_branch_flow_allows_feature_to_ai_dev(self) -> None:
+    def test_ci_gate_contract_accepts_unique_classified_gates(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
-            repo_root = Path(tmp) / "repo"
+            repo_root = Path(tmp) / "demo"
             repo_root.mkdir()
-            self._write_downstream_flow_default_module(framework_root)
-            self._write_demo_project_module(framework_root)
-            self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+            self._write_ci_gate_contract_golden_manifest(repo_root)
 
-            env = {
-                "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "ai-dev",
-                "GITHUB_HEAD_REF": "feature/demo",
-            }
-            with patch.dict(os.environ, env, clear=False):
-                findings = self._run_demo_gate(framework_root, repo_root)
+            findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
 
-    def test_downstream_branch_flow_allows_version_promotion_chain(self) -> None:
+    def test_ci_gate_contract_rejects_duplicate_platform_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
-            repo_root = Path(tmp) / "repo"
+            repo_root = Path(tmp) / "demo"
             repo_root.mkdir()
-            self._write_downstream_flow_default_module(framework_root)
-            self._write_demo_project_module(framework_root)
-            self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux_a:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  linux_b:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+            self._write_ci_gate_contract_golden_manifest(repo_root)
 
-            for head, base in (("ai-dev", "nightly"), ("nightly", "stable"), ("stable", "main")):
-                env = {
-                    "GITHUB_EVENT_NAME": "pull_request",
-                    "GITHUB_BASE_REF": base,
-                    "GITHUB_HEAD_REF": head,
-                }
-                with patch.dict(os.environ, env, clear=False):
-                    findings = self._run_demo_gate(framework_root, repo_root)
-                self.assertEqual([], [finding.message for finding in findings])
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(
+                any("platform `linux` must have exactly one gate named `platform-adaptation / linux-ci-gate`; found 2" in message for message in messages)
+            )
 
-    def test_downstream_branch_flow_rejects_feature_to_release_target(self) -> None:
+    def test_ci_gate_contract_rejects_runner_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
-            repo_root = Path(tmp) / "repo"
+            repo_root = Path(tmp) / "demo"
             repo_root.mkdir()
-            self._write_downstream_flow_default_module(framework_root)
-            self._write_demo_project_module(framework_root)
-            self._write_file(repo_root, "src/demo.txt", "demo\n")
-            self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+            self._write_ci_gate_contract_golden_manifest(repo_root)
 
-            env = {
-                "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "stable",
-                "GITHUB_HEAD_REF": "feature/demo",
-            }
-            with patch.dict(os.environ, env, clear=False):
-                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`stable` only accepts pull requests from `nightly`" in message for message in messages))
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("does not match platform `linux`" in message for message in messages))
 
-    def test_downstream_branch_flow_accepts_feature_to_nightly(self) -> None:
+    def test_ci_gate_contract_rejects_missing_golden_standard_test_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/tests.yml",
+                "name: tests\n"
+                "jobs:\n"
+                "  smoke:\n"
+                "    name: test / smoke\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_golden_manifest(repo_root)
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("test gate `golden_standard` must appear exactly once as `test / golden-standard`; found 0" in message for message in messages))
+
+    def test_ci_gate_contract_rejects_missing_golden_suite_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(
+                any("golden standard suite requires `docs/specs/GOLDEN-STANDARD-TEST-SUITE.md`" in message for message in messages)
+            )
+
+    def test_ci_gate_contract_rejects_golden_suite_manifest_missing_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+            self._write_file(repo_root, "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md", "# Golden\n\n`test / smoke`\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(
+                any(
+                    "golden standard suite `docs/specs/GOLDEN-STANDARD-TEST-SUITE.md` missing required marker `test / golden-standard`"
+                    in message
+                    for message in messages
+                )
+            )
+
+    def test_ci_gate_contract_rejects_industry_group_missing_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+            self._write_file(
+                repo_root,
+                "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+                "# Golden Standard Test Suite\n\n"
+                "- `test / smoke` covers the fast pre-submit check.\n"
+                "- `test / golden-standard` covers the full submit readiness check.\n"
+                "- `ide / extension-quality` covers extension host test and packaged extension evidence.\n"
+                "- Submit readiness requires both gates to pass.\n",
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+
+            self.assertTrue(
+                any(
+                    "industry gate group `ide / extension-quality` missing required marker `release preflight`"
+                    in message
+                    for message in messages
+                )
+            )
+
+    def test_ci_gate_contract_rejects_local_gate_profile_missing_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "demo"
+            repo_root.mkdir()
+            self._write_ci_gate_contract_default_module(framework_root)
+            self._write_ci_gate_contract_project_module(framework_root)
+            self._write_file(
+                repo_root,
+                ".github/workflows/platform-adaptation.yml",
+                "name: platform-adaptation\n"
+                "jobs:\n"
+                "  linux:\n"
+                "    name: platform-adaptation / linux-ci-gate\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n"
+                "  windows:\n"
+                "    name: platform-adaptation / windows-ci-gate\n"
+                "    runs-on: windows-latest\n"
+                "    steps:\n"
+                "      - run: echo ok\n",
+            )
+            self._write_file(
+                repo_root,
+                ".github/workflows/publish.yml",
+                "name: client-release\n"
+                "jobs:\n"
+                "  publish:\n"
+                "    name: client / release / marketplace\n"
+                "    runs-on: ubuntu-24.04\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+            self._write_ci_gate_contract_test_workflow(repo_root)
+            self._write_file(
+                repo_root,
+                "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+                "# Golden Standard Test Suite\n\n"
+                "- `test / smoke` covers the fast pre-submit check.\n"
+                "- `test / golden-standard` covers the full submit readiness check.\n"
+                "- Local Gate Profile: `demo-extension-host-profile` covers extension host smoke.\n"
+                "- `ide / extension-quality` covers extension host test, packaged extension, and release preflight evidence.\n"
+                "- Submit readiness requires both gates to pass.\n",
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+
+            self.assertTrue(
+                any(
+                    "local gate profile `docs/specs/GOLDEN-STANDARD-TEST-SUITE.md` missing required marker `repo-owned adaptation`"
+                    in message
+                    for message in messages
+                )
+            )
+
+    def test_downstream_branch_flow_allows_feature_to_nightly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -917,6 +1526,47 @@ class FrameworkTests(unittest.TestCase):
                 findings = self._run_demo_gate(framework_root, repo_root)
             self.assertEqual([], [finding.message for finding in findings])
 
+    def test_downstream_branch_flow_allows_version_promotion_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            for head, base in (("nightly", "stable"), ("stable", "release")):
+                env = {
+                    "GITHUB_EVENT_NAME": "pull_request",
+                    "GITHUB_BASE_REF": base,
+                    "GITHUB_HEAD_REF": head,
+                }
+                with patch.dict(os.environ, env, clear=False):
+                    findings = self._run_demo_gate(framework_root, repo_root)
+                self.assertEqual([], [finding.message for finding in findings])
+
+    def test_downstream_branch_flow_rejects_feature_to_stable_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_downstream_flow_default_module(framework_root)
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "src/demo.txt", "demo\n")
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "stable",
+                "GITHUB_HEAD_REF": "feature/demo",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("`stable` only accepts pull requests from `nightly`" in message for message in messages))
+
     def test_downstream_branch_flow_rejects_cross_lane_merge(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
@@ -930,14 +1580,14 @@ class FrameworkTests(unittest.TestCase):
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "stable",
-                "GITHUB_HEAD_REF": "ai-dev",
+                "GITHUB_BASE_REF": "release",
+                "GITHUB_HEAD_REF": "nightly",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`ai-dev` can only merge into `nightly`, not `stable`" in message for message in messages))
+            self.assertTrue(any("`nightly` can only merge into `stable`, not `release`" in message for message in messages))
 
-    def test_downstream_branch_flow_rejects_feature_to_main(self) -> None:
+    def test_downstream_branch_flow_rejects_feature_to_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -950,12 +1600,12 @@ class FrameworkTests(unittest.TestCase):
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "main",
+                "GITHUB_BASE_REF": "release",
                 "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`main` only accepts pull requests from `stable`" in message for message in messages))
+            self.assertTrue(any("`release` only accepts pull requests from `stable`" in message for message in messages))
 
     def test_upstream_branch_flow_accepts_feature_to_integration_targets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -966,19 +1616,18 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
-            for base in ("ai-dev", "nightly"):
-                env = {
-                    "GITHUB_EVENT_NAME": "pull_request",
-                    "GITHUB_BASE_REF": base,
-                    "GITHUB_HEAD_REF": "feature/demo",
-                }
-                with patch.dict(os.environ, env, clear=False):
-                    findings = self._run_demo_gate(framework_root, repo_root)
-                self.assertEqual([], [finding.message for finding in findings])
+            env = {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_BASE_REF": "nightly",
+                "GITHUB_HEAD_REF": "feature/demo",
+            }
+            with patch.dict(os.environ, env, clear=False):
+                findings = self._run_demo_gate(framework_root, repo_root)
+            self.assertEqual([], [finding.message for finding in findings])
 
-    def test_upstream_branch_flow_rejects_ai_dev_to_stable(self) -> None:
+    def test_upstream_branch_flow_rejects_feature_to_stable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -987,18 +1636,18 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
                 "GITHUB_BASE_REF": "stable",
-                "GITHUB_HEAD_REF": "ai-dev",
+                "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`ai-dev` can only merge into `nightly`, not `stable`" in message for message in messages))
+            self.assertTrue(any("`stable` only accepts pull requests from `nightly`" in message for message in messages))
 
-    def test_upstream_branch_flow_rejects_feature_to_main(self) -> None:
+    def test_upstream_branch_flow_rejects_feature_to_release(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -1007,16 +1656,16 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "main",
+                "GITHUB_BASE_REF": "release",
                 "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
                 messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
-            self.assertTrue(any("`main` only accepts pull requests from `stable`" in message for message in messages))
+            self.assertTrue(any("`release` only accepts pull requests from `stable`" in message for message in messages))
 
     def test_skip_branch_governance_suppresses_upstream_flow_findings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1027,11 +1676,11 @@ class FrameworkTests(unittest.TestCase):
             self._write_demo_project_module(framework_root)
             self._write_file(repo_root, "src/demo.txt", "demo\n")
             self._init_git_repo(repo_root)
-            self._set_origin(repo_root, "https://github.com/eBioRing/demo.git")
+            self._set_origin(repo_root, "https://github.com/SymPolicy/demo.git")
 
             env = {
                 "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_BASE_REF": "main",
+                "GITHUB_BASE_REF": "release",
                 "GITHUB_HEAD_REF": "feature/demo",
             }
             with patch.dict(os.environ, env, clear=False):
@@ -1085,6 +1734,27 @@ class FrameworkTests(unittest.TestCase):
             self.assertTrue(any("license metadata must be Apache-2.0" in message for message in messages))
             self.assertTrue(any("missing Apache-2.0 source-distribution notice" in message for message in messages))
 
+    def test_license_and_commercial_policies_skip_non_target_repository_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_policy_default_module(framework_root)
+            module_path = framework_root / "modules/default/module.json"
+            module = json.loads(module_path.read_text(encoding="utf-8"))
+            module["license_policy"]["target_repository_owners"] = ["SymPolicy"]
+            module["commercial_risk_policy"]["target_repository_owners"] = ["SymPolicy"]
+            module_path.write_text(json.dumps(module, indent=2, sort_keys=True), encoding="utf-8")
+            self._write_file(repo_root, "LICENSE", "GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\n")
+            self._write_json(repo_root, "package.json", {"license": "GPL-3.0-or-later"})
+            self._init_git_repo(repo_root)
+            self._set_origin(repo_root, "https://github.com/Unka-Malloc/demo.git")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+
+            self.assertFalse(any("license policy:" in message for message in messages))
+            self.assertFalse(any("commercial risk policy:" in message for message in messages))
+
     def test_commercial_risk_policy_rejects_disallowed_terms_and_missing_dependency_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             framework_root = Path(tmp) / "framework"
@@ -1130,6 +1800,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo server deployment module.",
                     "last_updated": "2026-04-24",
                     "project_ids": ["demo"],
+                    "audit_profile": "backend-operations",
                     "technology_stack": ["Python server deployment service"],
                     "internal_components": ["Server authentication handler"],
                     "open_source_components": ["Python standard library"],
@@ -1209,6 +1880,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo server deployment module.",
                     "last_updated": "2026-04-24",
                     "project_ids": ["demo"],
+                    "audit_profile": "backend-operations",
                     "technology_stack": ["Python server deployment service"],
                     "internal_components": ["Server authentication handler"],
                     "open_source_components": ["Python standard library"],
@@ -1319,6 +1991,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo server deployment module.",
                     "last_updated": "2026-04-24",
                     "project_ids": ["demo"],
+                    "audit_profile": "backend-operations",
                     "technology_stack": ["Python server deployment service"],
                     "internal_components": ["Server authentication handler"],
                     "open_source_components": ["Python standard library"],
@@ -1374,6 +2047,7 @@ class FrameworkTests(unittest.TestCase):
                     "description": "Demo local command module.",
                     "last_updated": "2026-04-24",
                     "project_ids": ["demo"],
+                    "audit_profile": "example-basic",
                     "technology_stack": ["Local CLI utility"],
                     "internal_components": ["Local command parser"],
                     "open_source_components": ["Python standard library"],
@@ -1422,9 +2096,54 @@ class FrameworkTests(unittest.TestCase):
         self.assertTrue(findings[0].fingerprint.startswith("sha256:"))
         self.assertNotIn(token, findings[0].to_dict().values())
 
+    def test_secret_scanner_ignores_placeholders_and_code_references(self) -> None:
+        findings = scan_text(
+            "secret: process.env.LICOLITE_SIGNING_SECRET\n"
+            "$apiKey = $env:DEEPSEEK_API_KEY\n"
+            "token: current.customHttpAdapter.token\n"
+            "header = \"X-Pafio-Write-Token: dev-token\"\n"
+            "secret: \"base64-encoded-secret\"\n"
+            "for (const auto& token : snapshot->syntax.tokens) {\n",
+            path="examples.md",
+        )
+        self.assertEqual([], [finding.to_dict() for finding in findings])
+
+    def test_secret_scan_policy_wildcard_applies_to_any_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            token = "ghp_" + "abcdefghijklmnopqrstuvwxyz1234567890ABCD"
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "secret_scan_policy": {
+                        "enabled": True,
+                        "target_project_ids": ["*"],
+                        "secret_classes": ["password", "token", "api_key", "private_key", "client_secret", "access_key"],
+                        "max_file_bytes": 1048576,
+                    },
+                },
+            )
+            self._write_demo_project_module(framework_root)
+            self._write_file(repo_root, "docs/guide.md", f"token = '{token}'\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("secret scan: docs/guide.md" in message for message in messages))
+
     def test_ip_exposure_policy_allows_loopback_and_rejects_other_ips(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            public_ip = "203.0" + ".113.9"
+            public_ip = "8.8" + ".4.4"
+            documentation_ip = "203.0" + ".113.9"
             unspecified_ipv6 = "[" + "::" + "]"
             framework_root = Path(tmp) / "framework"
             repo_root = Path(tmp) / "repo"
@@ -1453,13 +2172,15 @@ class FrameworkTests(unittest.TestCase):
                 repo_root,
                 "README.md",
                 "Local examples may use http://127.0.0.1:8080 and http://[::1]:8080.\n"
+                f"Documentation examples may use {documentation_ip}.\n"
                 f"External service address {public_ip} must not be committed.\n",
             )
             self._write_file(repo_root, "nginx.conf", f"listen {unspecified_ipv6}:80;\n")
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertTrue(any(public_ip in message for message in messages))
-            self.assertTrue(any("nginx.conf" in message and "::" in message for message in messages))
+            self.assertFalse(any(documentation_ip in message for message in messages))
+            self.assertFalse(any("nginx.conf" in message and "::" in message for message in messages))
             self.assertFalse(any("127.0.0.1" in message for message in messages))
             self.assertFalse(any("::1" in message for message in messages))
 
@@ -1574,6 +2295,143 @@ class FrameworkTests(unittest.TestCase):
 
             messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
             self.assertFalse(any("src/main.cpp" in message for message in messages))
+
+    def test_public_infrastructure_exposure_policy_allows_placeholders_and_public_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "public_infrastructure_exposure_policy": {
+                        "enabled": True,
+                        "name": "Public infrastructure boundary.",
+                        "target_project_ids": ["demo"],
+                        "target_repository_owners": [],
+                        "scan_globs": ["**/*.md", "**/*.toml", "**/*.yml"],
+                        "restricted_path_globs": ["**/*kubeconfig*"],
+                        "allowed_placeholder_markers": ["example", "sample", "template", "localhost"],
+                        "allowed_host_suffixes": ["example.invalid", "github.com", "localhost"],
+                        "disallowed_host_markers": ["admin", "prod", "internal", "db"],
+                        "disallowed_dsn_schemes": ["postgres", "redis"],
+                        "cloud_resource_markers": ["arn:aws:", "s3://"],
+                    },
+                },
+            )
+            self._write_file(
+                repo_root,
+                "docs/guide.md",
+                "Public examples may use https://api.example.invalid and https://github.com/SymPolicy/Styio.\n"
+                "Local examples may use redis://localhost/cache.\n"
+                "Language syntax examples may use redis://... as a placeholder.\n",
+            )
+            self._write_file(
+                repo_root,
+                "configs/sample-kubeconfig.yml",
+                "apiVersion: v1\nclusters: []\nusers: []\ncurrent-context: sample\n",
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertFalse(any("public infrastructure exposure" in message for message in messages))
+
+    def test_public_infrastructure_exposure_policy_rejects_ops_material(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "public_infrastructure_exposure_policy": {
+                        "enabled": True,
+                        "name": "Public infrastructure boundary.",
+                        "target_project_ids": ["demo"],
+                        "target_repository_owners": [],
+                        "scan_globs": ["**/*.md", "**/*.sh", "**/*.yml"],
+                        "restricted_path_globs": ["**/*kubeconfig*", "**/ops/**", "**/prod/**"],
+                        "allowed_placeholder_markers": ["example", "sample", "template", "localhost"],
+                        "allowed_host_suffixes": ["example.invalid", "github.com", "localhost"],
+                        "disallowed_host_markers": ["admin", "prod", "internal", "db"],
+                        "disallowed_dsn_schemes": ["postgres", "redis"],
+                        "cloud_resource_markers": ["arn:aws:", "s3://"],
+                    },
+                },
+            )
+            self._write_file(
+                repo_root,
+                "docs/runbook.md",
+                "Production console: https://admin.prod.styio.io\n"
+                "Database DSN: postgres://styio:secret@db.internal:5432/styio\n",
+            )
+            self._write_file(
+                repo_root,
+                "scripts/deploy.sh",
+                "aws_role=arn:aws:iam::123456789012:role/styio-prod\n"
+                "bucket=s3://styio-prod-private-config\n",
+            )
+            self._write_file(
+                repo_root,
+                "ops/prod/kubeconfig.yml",
+                "apiVersion: v1\nclusters: []\nusers: []\ncurrent-context: production\n",
+            )
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertTrue(any("operational URL host" in message for message in messages))
+            self.assertTrue(any("service DSN" in message for message in messages))
+            self.assertTrue(any("cloud resource marker" in message for message in messages))
+            self.assertTrue(any("restricted infrastructure path policy" in message for message in messages))
+            self.assertTrue(any("looks like a kubeconfig" in message for message in messages))
+
+    def test_public_infrastructure_exposure_policy_ignores_non_target_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            framework_root = Path(tmp) / "framework"
+            repo_root = Path(tmp) / "repo"
+            repo_root.mkdir()
+            self._write_json(
+                framework_root,
+                "modules/default/module.json",
+                {
+                    "schema_version": 1,
+                    "module_id": "default",
+                    "module_type": "default",
+                    "description": "Common audit rules.",
+                    "last_updated": "2026-06-29",
+                    "required_audit_fields": ["**Severity:**"],
+                    "required_closure_fields": ["**Closure evidence:**"],
+                    "required_checklist_markers": ["marker"],
+                    "public_infrastructure_exposure_policy": {
+                        "enabled": True,
+                        "name": "Public infrastructure boundary.",
+                        "target_project_ids": ["styio"],
+                        "target_repository_owners": [],
+                        "scan_globs": ["**/*.md"],
+                        "disallowed_host_markers": ["admin", "prod"],
+                    },
+                },
+            )
+            self._write_file(repo_root, "docs/runbook.md", "Production console: https://admin.prod.styio.io\n")
+
+            messages = [finding.message for finding in self._run_demo_gate(framework_root, repo_root)]
+            self.assertFalse(any("public infrastructure exposure" in message for message in messages))
 
 
 if __name__ == "__main__":

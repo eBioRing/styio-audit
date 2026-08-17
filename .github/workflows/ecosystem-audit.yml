@@ -6,7 +6,6 @@ on:
       - main
       - stable
       - nightly
-      - ai-dev
   workflow_dispatch:
 
 permissions:
@@ -22,18 +21,36 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - repo: eBioRing/styio-audit
-            path: styio-audit
-            project: styio-audit
-          - repo: eBioRing/styio-platform
-            path: styio-platform
-            project: styio-platform
+          - repo: SymPolicy/styio-benchmark
+            path: styio-benchmark
+            project: styio-benchmark
+            ref: canary
+          - repo: SymPolicy/styio-book
+            path: styio-book
+            project: styio-book
+            ref: main
+          - repo: SymPolicy/styio-dev-doc
+            path: styio-dev-doc
+            project: styio-dev-doc
+            ref: main
+          - repo: SymPolicy/styio-dev-env
+            path: styio-dev-env
+            project: styio-dev-env
+            ref: main
+          - repo: SymPolicy/styio-example
+            path: styio-example
+            project: styio-example
+            ref: main
+          - repo: SymPolicy/styio.io
+            path: styio.io
+            project: styio.io
+            ref: main
 
     steps:
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
-          repository: eBioRing/styio-audit
+          repository: SymPolicy/styio-audit
           ref: stable
           path: styio-audit
 
@@ -42,7 +59,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: ${{ matrix.target.repo }}
-          ref: ai-dev
+          ref: ${{ matrix.target.ref }}
           fetch-depth: 0
           path: ${{ matrix.target.path }}
 
@@ -55,7 +72,7 @@ jobs:
         run: |
           git -C styio-audit rev-parse HEAD
           git -C "${{ matrix.target.path }}" rev-parse HEAD
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git -C "${{ matrix.target.path }}" fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
           python3 styio-audit/bin/styio-audit gate \
@@ -71,36 +88,36 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { repo: eBioRing/Styio, project: styio, ref: main }
-          - { repo: eBioRing/Styio, project: styio, ref: stable }
-          - { repo: eBioRing/Styio, project: styio, ref: nightly }
-          - { repo: eBioRing/Styio, project: styio, ref: ai-dev }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: main }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: stable }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: nightly }
-          - { repo: eBioRing/styio-spio, project: styio-spio, ref: ai-dev }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: main }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: stable }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: nightly }
-          - { repo: eBioRing/styio-view, project: styio-view, ref: ai-dev }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: main }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: stable }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: nightly }
-          - { repo: eBioRing/styio-audit, project: styio-audit, ref: ai-dev }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: main }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: stable }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: nightly }
-          - { repo: eBioRing/styio-platform, project: styio-platform, ref: ai-dev }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: main }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: stable }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: nightly }
-          - { repo: eBioRing/styio-community, project: styio-community, ref: ai-dev }
+          - { repo: SymPolicy/Styio, project: Styio, ref: release }
+          - { repo: SymPolicy/Styio, project: Styio, ref: stable }
+          - { repo: SymPolicy/Styio, project: Styio, ref: nightly }
+          - { repo: SymPolicy/Pafio, project: Pafio, ref: release }
+          - { repo: SymPolicy/Pafio, project: Pafio, ref: stable }
+          - { repo: SymPolicy/Pafio, project: Pafio, ref: nightly }
+          - { repo: SymPolicy/Vityo, project: Vityo, ref: release }
+          - { repo: SymPolicy/Vityo, project: Vityo, ref: stable }
+          - { repo: SymPolicy/Vityo, project: Vityo, ref: nightly }
+          - { repo: SymPolicy/styio-all-in-one, project: styio-all-in-one, ref: main }
+          - { repo: SymPolicy/styio-all-in-one, project: styio-all-in-one, ref: stable }
+          - { repo: SymPolicy/styio-all-in-one, project: styio-all-in-one, ref: nightly }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: main }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: stable }
+          - { repo: SymPolicy/styio-audit, project: styio-audit, ref: nightly }
+          - { repo: SymPolicy/styio-ext-vsc, project: styio-ext-vsc, ref: main }
+          - { repo: SymPolicy/styio-ext-vsc, project: styio-ext-vsc, ref: stable }
+          - { repo: SymPolicy/styio-ext-vsc, project: styio-ext-vsc, ref: nightly }
+          - { repo: SymPolicy/Styio-Cloud, project: Styio-Cloud, ref: release }
+          - { repo: SymPolicy/Styio-Cloud, project: Styio-Cloud, ref: stable }
+          - { repo: SymPolicy/Styio-Cloud, project: Styio-Cloud, ref: nightly }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: main }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: stable }
+          - { repo: SymPolicy/styio-community, project: styio-community, ref: nightly }
 
     steps:
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
-          repository: eBioRing/styio-audit
+          repository: SymPolicy/styio-audit
           ref: stable
           path: styio-audit
 
@@ -121,7 +138,7 @@ jobs:
         run: |
           git -C styio-audit rev-parse HEAD
           git -C target rev-parse HEAD
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git -C target fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
           python3 styio-audit/bin/styio-audit gate \
