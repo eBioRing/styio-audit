@@ -12,6 +12,7 @@ from .local_workflow import (
     load_local_audit_workflow_policy_spec,
     sync_local_audit_workflow,
 )
+from .local_hooks import run_precommit_gate, sync_local_precommit_hook
 from .models import AuditContext, AuditFinding
 from .report import build_audit_report, write_report
 from .secrets import render_history_summary, scan_history
@@ -104,6 +105,15 @@ def command_secret_history(args: argparse.Namespace) -> int:
     return 1 if findings else 0
 
 
+def command_precommit(args: argparse.Namespace) -> int:
+    root = Path(args.framework_root).resolve()
+    repo_root = Path(args.repo).resolve()
+    if not repo_root.exists():
+        return emit([AuditFinding("error", f"target repo does not exist: {repo_root}")], fmt=args.format)
+    findings = run_precommit_gate(root, repo_root, args.project)
+    return emit(findings, fmt=args.format)
+
+
 def command_sync_local_workflow(args: argparse.Namespace) -> int:
     root = Path(args.framework_root).resolve()
     repo_root = Path(args.repo).resolve()
@@ -124,6 +134,37 @@ def command_sync_local_workflow(args: argparse.Namespace) -> int:
     print(
         f"[styio-audit] {action}: {result.workflow_path} "
         f"(project={args.project}, framework_ref={result.framework_ref})"
+    )
+    return 0
+
+
+def command_sync_local_precommit_hook(args: argparse.Namespace) -> int:
+    root = Path(args.framework_root).resolve()
+    repo_root = Path(args.repo).resolve()
+    if not repo_root.exists():
+        return emit([AuditFinding("error", f"target repo does not exist: {repo_root}")], fmt=args.format)
+    try:
+        result = sync_local_precommit_hook(
+            root,
+            repo_root,
+            args.project,
+            repo_name=args.repo_name,
+            framework_ref=args.framework_ref,
+            check=args.check,
+            configure_git=not args.no_configure_git,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        return emit([AuditFinding("error", str(exc))], fmt=args.format)
+    if args.check:
+        action = "verified"
+    elif result.changed or result.hooks_path_changed:
+        action = "updated"
+    else:
+        action = "already aligned"
+    hooks_note = "hooksPath configured" if result.hooks_path_changed and not args.check else "hooksPath aligned"
+    print(
+        f"[styio-audit] {action}: {result.hook_path} "
+        f"(project={args.project}, framework_ref={result.framework_ref}, {hooks_note})"
     )
     return 0
 
@@ -182,7 +223,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     gate_cmd = sub.add_parser("gate", help="Run default and project-specific modules against a target repo.")
     gate_cmd.add_argument("--repo", required=True, help="Target repository root to audit.")
-    gate_cmd.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    gate_cmd.add_argument("--project", required=True, help="Project id, such as styio, styio-pafio, or styio-view.")
     gate_cmd.add_argument("--framework-only", action="store_true", help="Skip active defect-record closure checks.")
     gate_cmd.add_argument(
         "--skip-branch-governance",
@@ -194,7 +235,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = sub.add_parser("report", help="Generate a structured external audit report for a target repo.")
     report.add_argument("--repo", required=True, help="Target repository root to audit.")
-    report.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    report.add_argument("--project", required=True, help="Project id, such as styio, styio-pafio, or styio-view.")
     report.add_argument("--output", help="Write the rendered report to a file. Relative paths are resolved under the target repository.")
     report.add_argument("--framework-only", action="store_true", help="Skip active defect-record closure checks.")
     report.add_argument(
@@ -211,12 +252,18 @@ def build_parser() -> argparse.ArgumentParser:
     secret_history.add_argument("--format", choices=("text", "json"), default="text")
     secret_history.set_defaults(func=command_secret_history)
 
+    precommit = sub.add_parser("pre-commit", help="Scan staged files before commit for redacted secret, IP, and backend infrastructure exposure findings.")
+    precommit.add_argument("--repo", required=True, help="Target repository root to scan.")
+    precommit.add_argument("--project", help="Project id for profile-aware staged checks; defaults to the repository directory name.")
+    precommit.add_argument("--format", choices=("text", "json"), default="text")
+    precommit.set_defaults(func=command_precommit)
+
     sync_local = sub.add_parser(
         "sync-local-workflow",
         help="Render or verify the authoritative repository-local styio-audit workflow for one target repository.",
     )
     sync_local.add_argument("--repo", required=True, help="Target repository root that owns `.github/workflows/styio-audit.yml`.")
-    sync_local.add_argument("--project", required=True, help="Project id, such as styio, styio-spio, or styio-view.")
+    sync_local.add_argument("--project", required=True, help="Project id, such as styio, styio-pafio, or styio-view.")
     sync_local.add_argument("--repo-name", help="Override the repository name placeholder; defaults to the target directory name.")
     sync_local.add_argument(
         "--framework-ref",
@@ -226,6 +273,23 @@ def build_parser() -> argparse.ArgumentParser:
     sync_local.add_argument("--check", action="store_true", help="Fail if the target workflow drifts instead of rewriting it.")
     sync_local.add_argument("--format", choices=("text", "json"), default="text")
     sync_local.set_defaults(func=command_sync_local_workflow)
+
+    sync_hook = sub.add_parser(
+        "sync-local-precommit-hook",
+        help="Render or verify the local staged-content pre-commit hook for one target repository.",
+    )
+    sync_hook.add_argument("--repo", required=True, help="Target repository root that owns `.githooks/pre-commit`.")
+    sync_hook.add_argument("--project", required=True, help="Project id, such as Styio, Pafio, Vityo, or pafio.")
+    sync_hook.add_argument("--repo-name", help="Override the repository name placeholder; defaults to the target directory name.")
+    sync_hook.add_argument(
+        "--framework-ref",
+        default="HEAD",
+        help="Git ref inside styio-audit that owns the authoritative hook template. Use HEAD for the current worktree.",
+    )
+    sync_hook.add_argument("--check", action="store_true", help="Fail if the target hook or hooksPath drifts instead of rewriting it.")
+    sync_hook.add_argument("--no-configure-git", action="store_true", help="Write or verify the hook file without setting core.hooksPath.")
+    sync_hook.add_argument("--format", choices=("text", "json"), default="text")
+    sync_hook.set_defaults(func=command_sync_local_precommit_hook)
 
     sync_upstream = sub.add_parser(
         "sync-upstream-local-workflows",
