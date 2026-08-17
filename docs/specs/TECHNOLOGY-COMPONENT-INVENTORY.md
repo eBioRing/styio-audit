@@ -2,7 +2,7 @@
 
 **Purpose:** Record the technology stack, self-developed components, open-source components, and dependency manifest surfaces required for Styio audit coverage.
 
-**Last updated:** 2026-04-24
+**Last updated:** 2026-08-18
 
 This inventory is the baseline required by `modules/default/module.json`. A project module manifest must list `technology_stack`, `internal_components`, `open_source_components`, and `dependency_manifests`; otherwise `styio-audit validate-modules` and every downstream gate fail. Server-deployment modules must also document `security_boundaries` for authentication, privacy, password handling, secret/key material, production/offline material, permission matrices, deployment security, dependency vulnerability evidence, DAST/penetration regression, runtime secret management, rate-limit/anti-replay controls, log redaction, SSRF/egress controls, and command-execution boundaries before the audit gate can pass.
 
@@ -44,7 +44,7 @@ Dependency manifest surfaces:
 - `.github/workflows/*.yml`.
 - `.devcontainer/devcontainer.json`, `.docker/docker-compose.yaml`.
 
-## styio-spio
+## Pafio
 
 Technology stack:
 
@@ -57,10 +57,10 @@ Technology stack:
 
 Self-developed components:
 
-- `SpioManifest`, `SpioResolve`, and `SpioPlan` manifest/resolver/compile-plan graph.
-- `SpioRegistryClient` and `spio_registry_v2` registry materialization and trust layer.
-- `SpioToolchain` and `SpioTool` managed compiler/toolchain state.
-- `SpioCore` process handling and `SpioCloud` control-plane integration.
+- `PafioManifest`, `PafioResolve`, and `PafioPlan` manifest/resolver/compile-plan graph.
+- `PafioRegistryClient` and `pafio_registry_v2` registry materialization and trust layer.
+- `PafioToolchain` and `PafioTool` managed compiler/toolchain state.
+- `PafioCore` process handling and `PafioCloud` control-plane integration.
 - Native, interop, unit, docs, and delivery gate suites.
 - Registry v2 publish, verify, keygen, promote, and control-plane helper scripts.
 
@@ -79,7 +79,7 @@ Dependency manifest surfaces:
 - TOML support files and lockfiles where present.
 - `.github/workflows/*.yml`.
 
-## styio-view
+## Vityo
 
 Technology stack:
 
@@ -115,14 +115,15 @@ Open-source or external components:
 
 Dependency manifest surfaces:
 
-- `frontend/styio_view_app/pubspec.yaml`.
+- `products/vityo_app/pubspec.yaml`.
 - `prototype/package.json`.
-- `frontend/styio_view_app/linux/CMakeLists.txt`, `frontend/styio_view_app/linux/flutter/CMakeLists.txt`.
-- `frontend/styio_view_app/windows/CMakeLists.txt`, `frontend/styio_view_app/windows/flutter/CMakeLists.txt`.
+- `products/vityo_app/linux/CMakeLists.txt`, `products/vityo_app/linux/flutter/CMakeLists.txt`.
+- `products/vityo_app/windows/CMakeLists.txt`, `products/vityo_app/windows/flutter/CMakeLists.txt`.
 - Android Gradle files.
+- `products/vityo_app/native/vityod/Cargo.toml`.
 - `.github/workflows/*.yml`.
 
-## styio-platform
+## Styio Cloud
 
 Technology stack:
 
@@ -136,7 +137,7 @@ Technology stack:
 
 Self-developed components:
 
-- `PlatformService` route dispatch, daemon self-test, identity, object-store, and job lifecycle code.
+- `StyioCloudService` route dispatch, daemon self-test, identity, object-store, and job lifecycle code.
 - Registry control-plane and registry v2 contract packages.
 - Native contract governance, example packs, and source gates.
 - Registry mirror distribution and regional node runbooks.
@@ -188,7 +189,7 @@ Dependency manifest surfaces:
 
 - `pyproject.toml`.
 - `modules/default/module.json`.
-- `for-styio/module.json`, `for-styio-spio/module.json`, `for-styio-view/module.json`, `for-styio-platform/module.json`, `for-styio-audit/module.json`.
+- `for-styio/module.json`, `for-pafio/module.json`, `for-styio-view/module.json`, `for-styio-cloud/module.json`, `for-styio-audit/module.json`.
 
 ## Audit Rule
 

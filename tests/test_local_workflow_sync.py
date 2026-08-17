@@ -36,8 +36,8 @@ class LocalWorkflowSyncTests(unittest.TestCase):
                     "local_audit_workflow_policy": {
                         "enabled": True,
                         "name": "Authoritative local workflow policy.",
-                        "target_project_ids": ["styio", "styio-spio"],
-                        "target_repository_owners": ["eBioRing"],
+                        "target_project_ids": ["styio", "styio-pafio"],
+                        "target_repository_owners": ["SymPolicy"],
                         "workflow_path": ".github/workflows/styio-audit.yml",
                         "template_path": "templates/workflows/styio-audit-local.yml",
                     },

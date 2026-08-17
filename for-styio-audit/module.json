@@ -30,8 +30,8 @@
     "Unka-Malloc downstream version-promotion pull request branch-flow gate",
     "Framework test suite and command wrapper",
     "Self-audit baseline workflow for all styio-audit branches",
-    "Self-promotion gate workflow for nightly, stable, and main promotion gates",
-    "Ecosystem audit fan-out workflow for SymPolicy styio, styio-pafio, styio-view, pafio, styio-community, and styio-audit delivery branches"
+    "Self-promotion gate workflow for nightly, stable, and release promotion gates",
+    "Ecosystem audit fan-out workflow for SymPolicy Styio, Pafio, Vityo, Styio Cloud, Styio Community, and Styio Audit delivery branches"
   ],
   "open_source_components": [
     "Python standard library",

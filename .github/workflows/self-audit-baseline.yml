@@ -32,7 +32,7 @@ jobs:
       - name: Run styio-audit baseline self gate
         run: |
           git rev-parse HEAD
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
           python3 -m unittest discover -s tests -v
