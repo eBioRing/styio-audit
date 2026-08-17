@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "module_id": "for-styio-community",
+  "module_type": "project",
+  "description": "Repository module for the Styio community service, web frontend, adapters, and forum state.",
+  "last_updated": "2026-06-29",
+  "project_ids": [
+    "styio-community",
+    "community"
+  ],
+  "audit_profile": "backend-operations",
+  "technology_stack": [
+    "Python community service modules",
+    "Static web frontend",
+    "Node.js design tooling"
+  ],
+  "internal_components": [
+    "community_forum",
+    "community_storage",
+    "community_adapters",
+    "web_frontend",
+    "stitch_design_tools"
+  ],
+  "open_source_components": [
+    "Python standard library",
+    "Node.js toolchain",
+    "browser JavaScript and CSS"
+  ],
+  "dependency_manifests": [
+    "tools/stitch/package.json"
+  ],
+  "ci_gate_contract": {
+    "test_gates": {
+      "smoke": "test / smoke",
+      "golden_standard": "test / golden-standard"
+    },
+    "submit_readiness": "A styio-community version is submittable when `test / smoke` and `test / golden-standard` both pass.",
+    "golden_standard_suite": {
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "required_files": [
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md"
+      ],
+      "required_markers": {
+        "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md": [
+          "test / smoke",
+          "test / golden-standard",
+          "submit readiness"
+        ]
+      }
+    },
+    "industry_gate_groups": {
+      "backend / workflow-integrity": {
+        "covered_by": "test / golden-standard",
+        "industry_references": [
+          "OpenSSF Scorecard: CI tests, code review, dangerous workflow, dependency update, packaging",
+          "GitHub CodeQL code scanning: semantic code analysis for vulnerability patterns"
+        ],
+        "required_markers": [
+          "serialization",
+          "adapter contract",
+          "storage state machine",
+          "bytecode compile",
+          "public workflow"
+        ]
+      }
+    },
+    "local_gate_profile": {
+      "profile_id": "styio-community-storage-workflow-profile",
+      "manifest": "docs/specs/GOLDEN-STANDARD-TEST-SUITE.md",
+      "covered_by": "test / golden-standard",
+      "required_markers": [
+        "repo-owned adaptation",
+        "serialization",
+        "adapter",
+        "forum",
+        "state-machine"
+      ]
+    }
+  },
+  "security_boundaries": [
+    "Authentication and authorization implementation for community service routes may be public when it follows documented standard protocol behavior.",
+    "Privacy and PII payloads must not be committed in forum fixtures, examples, reports, moderation exports, or logs.",
+    "Password storage is not a production styio-community repository responsibility; any password fixture must be fake test data.",
+    "Secret, token, key, and credential material for adapters, moderation tools, and web publishing must stay private.",
+    "Production private material, service configuration, moderation data exports, and generated key bundles are offline or not committed to GitHub.",
+    "Permission matrix and route authorization behavior for forum, moderation, adapter, and storage routes must be covered by regression tests.",
+    "Deployment security config must document TLS, CORS, CSRF, cookie, debug exposure, and public web service boundaries where applicable.",
+    "SBOM, CVE, and dependency vulnerability scan evidence is required before release or external deployment gates pass.",
+    "DAST black-box penetration security regression must cover deployed community service and public web interaction surfaces before public deployment.",
+    "Runtime secret manager or KMS key rotation owns production adapter tokens, moderation credentials, and service secrets.",
+    "Rate limit, anti replay nonce, and idempotency boundaries must be documented for forum write, moderation, adapter, and storage routes.",
+    "Log redaction and audit log rules must prevent user content secrets, request tokens, moderation notes, and credentials from being written to logs.",
+    "SSRF egress allowlist and URL allowlist boundaries must cover outbound adapter calls, preview fetches, and web publishing helpers.",
+    "Command execution must use subprocess allowlists and reject shell injection surfaces for design tooling, publishing, and maintenance helpers."
+  ],
+  "resource_classes": [
+    {
+      "id": "community_service_surface",
+      "owner": "Community Service",
+      "description": "Owns forum state, adapters, storage contracts, and public web interaction surfaces.",
+      "scope_globs": [
+        "community/**",
+        "web/**",
+        "tests/**",
+        "scripts/**",
+        "tools/stitch/**",
+        "docs/**"
+      ],
+      "copying_policy": "Community examples and generated design assets must not copy private user data, moderation records, or service credentials.",
+      "concurrency_policy": "Forum and storage state transitions must remain testable through repository-local tests before release.",
+      "nullability_policy": "Missing storage or adapter boundaries must fail closed rather than silently dropping community content.",
+      "cleanup_policy": "Generated design outputs and local web preview artifacts must stay untracked unless intentionally documented.",
+      "state_machine": {
+        "source": "Community content and service lifecycle.",
+        "states": [
+          "draft",
+          "moderated",
+          "published",
+          "archived"
+        ],
+        "transitions": [
+          {
+            "from": "draft",
+            "to": "moderated",
+            "on": "community validation"
+          },
+          {
+            "from": "moderated",
+            "to": "published",
+            "on": "publish approved content"
+          },
+          {
+            "from": "published",
+            "to": "archived",
+            "on": "retire stale content"
+          }
+        ],
+        "invalid_operations": [
+          "publish private user data",
+          "bypass moderation state"
+        ]
+      },
+      "required_tests": [
+        "community adapter, forum, state-machine, and storage tests"
+      ],
+      "required_gates": [
+        "styio-audit common gate",
+        "local community CI"
+      ],
+      "audit_risks": [
+        "user-data leakage",
+        "state-machine drift",
+        "unchecked generated design assets"
+      ]
+    }
+  ]
+}
